@@ -25,6 +25,7 @@ const LOCATION = process.env.GCP_LOCATION || "us-central1";
 const TIMEOUT_MS = 120_000;
 
 export type ImageInput = { bytes: Buffer; mimeType: string };
+export type ProductWithDescription = ImageInput & { description: string };
 
 let _auth: GoogleAuth | null = null;
 function getAuth(): GoogleAuth {
@@ -71,39 +72,45 @@ async function fetchWithTimeout(
 // ---------------------------------------------------------------------------
 
 /**
- * Build the Tier-1 prompt from the input keyframePrompt.
+ * Build the Tier-1 prompt from the input keyframePrompt and product descriptions.
  * We synthesize it programmatically — no extra Gemini call needed.
- * [1] = reference face person, [2] = necklace product.
+ * [1] = reference face person, [2] = product image.
  */
-function buildTier1Prompt(keyframePrompt: string): string {
+function buildTier1Prompt(input: {
+  keyframePrompt: string;
+  products: ProductWithDescription[];
+}): string {
   // Strip the "IMAGE 1/2/3" wording that refers to how the smoke script
   // structured the prompt, and replace with [1]/[2] placeholders that
   // the Customization API understands.
-  const base = keyframePrompt
+  const base = input.keyframePrompt
     .replace(/IMAGE\s+\d+/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 
+  const productDesc = input.products[0]?.description ?? "product";
+
   return (
-    `Subject [1] as the featured person. Subject [2] is the necklace worn around their neck with pendant visible at center front. ` +
+    `Subject [1] as the featured person. Subject [2] is the product (${productDesc}). The person is wearing/holding all items as described. ` +
     `${base} ` +
-    `Use Subject [1] as the person's face — same eyes, skin tone, hair, nose stud, mole — identity preservation is highest priority. ` +
-    `Use Subject [2] as the exact product around their neck.`
+    `Use Subject [1] as the person's face — identity preservation is highest priority. ` +
+    `Use Subject [2] exactly as shown.`
   );
 }
 
 async function tier1Customization(input: {
   keyframePrompt: string;
   referenceFace: ImageInput;
-  products: ImageInput[];
+  products: ProductWithDescription[];
 }): Promise<{ imageBytes: Buffer; mimeType: string } | null> {
   const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-capability-001:predict`;
 
-  const prompt = buildTier1Prompt(input.keyframePrompt);
+  const prompt = buildTier1Prompt({ keyframePrompt: input.keyframePrompt, products: input.products });
   console.log("[keyframe][tier1] prompt:", prompt.slice(0, 300));
 
   const faceB64 = input.referenceFace.bytes.toString("base64");
   const productB64 = input.products[0]?.bytes.toString("base64") ?? "";
+  const subjectDescription = input.products[0]?.description ?? "product";
 
   const referenceImages: object[] = [
     {
@@ -123,7 +130,7 @@ async function tier1Customization(input: {
       referenceId: 2,
       referenceImage: { bytesBase64Encoded: productB64 },
       subjectImageConfig: {
-        subjectDescription: "black-beaded choker necklace with cross pendant",
+        subjectDescription,
         subjectType: "SUBJECT_TYPE_PRODUCT",
       },
     });
@@ -175,14 +182,14 @@ async function tier1Customization(input: {
 async function tier2Inpaint(input: {
   keyframePrompt: string;
   referenceFace: ImageInput;
-  products: ImageInput[];
+  products: ProductWithDescription[];
 }): Promise<{ imageBytes: Buffer; mimeType: string } | null> {
   const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-generate-001:predict`;
 
+  const itemsDesc = input.products.map((p) => p.description).join("; ");
   const inpaintPrompt =
-    `Keep this person's face EXACTLY as-is — same eyes, skin tone, hair, nose stud, mole near mouth. ` +
-    `Add a double-strand black-beaded choker necklace with a small black cross pendant around their neck, pendant clearly visible at center front. ` +
-    `Shift the overall scene lighting and mood toward a chic press-conference setting with microphones and cameras in the background. ` +
+    `Keep this person's face EXACTLY as-is. ` +
+    `Add the following items to them: ${itemsDesc}. ` +
     `Vertical 9:16 portrait, fashion photography, dramatic lighting.`;
 
   console.log("[keyframe][tier2] inpaint prompt:", inpaintPrompt.slice(0, 300));
@@ -241,16 +248,17 @@ async function buildImagenPromptLegacy(input: {
   keyframePrompt: string;
   templateFirstFrame: ImageInput;
   referenceFace: ImageInput;
-  products: ImageInput[];
+  products: ProductWithDescription[];
 }): Promise<string> {
   const ai = getGenAIClient();
 
+  const itemsDesc = input.products.map((p) => p.description).join("; ");
   const systemInstruction = [
     "You are generating a single Imagen text-to-image prompt.",
     "Combine the following three inputs into one concise prompt (under 250 words):",
     "1. Replicate the EXACT scene, pose, background, lighting, and framing from IMAGE 1 (scene reference).",
     "2. Describe the EXACT facial features from IMAGE 2 (face reference): skin tone, hair colour/length/texture, face shape, eye shape, nose, lips, and any distinctive features such as nose studs or moles.",
-    "3. The person is naturally wearing the product shown in IMAGE 3 (a double-strand black-beaded choker necklace with a small black cross pendant) visibly around their neck, pendant at the center front.",
+    `3. The person is naturally wearing/holding all items shown across IMAGE 3+ — specifically: ${itemsDesc}.`,
     "Begin the prompt with 'Professional fashion photograph,' and output ONLY the prompt text — no headers, no explanation.",
   ].join(" ");
 
@@ -286,7 +294,7 @@ async function tier3TextOnly(input: {
   keyframePrompt: string;
   templateFirstFrame: ImageInput;
   referenceFace: ImageInput;
-  products: ImageInput[];
+  products: ProductWithDescription[];
 }): Promise<{ imageBytes: Buffer; mimeType: string }> {
   const imagenPrompt = await buildImagenPromptLegacy(input);
 
@@ -333,7 +341,7 @@ export async function compositeKeyframe(input: {
   keyframePrompt: string;
   templateFirstFrame: ImageInput;
   referenceFace: ImageInput;
-  products: ImageInput[];
+  products: ProductWithDescription[];
 }): Promise<{ imageBytes: Buffer; mimeType: string }> {
   // Tier 1 — Imagen 3 Customization (subject reference)
   console.log("[keyframe] trying Tier 1 — Imagen 3 Customization (imagen-3.0-capability-001)...");

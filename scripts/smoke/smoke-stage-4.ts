@@ -25,18 +25,30 @@ const TEMPLATE_FIXTURE: TemplateMetadata = {
 };
 
 const WATCH_FIXTURE: ProductMetadata = {
-  product_type: "wristwatch",
-  attachment_strategy: "worn_on_wrist",
-  side_preference: "left_wrist",
-  visual_description: "silver round-face analog watch with brown leather strap",
+  primary_item_type: "wristwatch",
+  items: [
+    {
+      item_type: "wristwatch",
+      attachment_strategy: "worn_on_wrist",
+      side_preference: "left_wrist",
+      visual_description: "silver round-face analog watch with brown leather strap",
+    },
+  ],
+  overall_description: "silver analog wristwatch on brown leather strap",
   key_features: ["silver case", "brown leather", "white dial"],
 };
 
 const BAG_FIXTURE: ProductMetadata = {
-  product_type: "handbag",
-  attachment_strategy: "carried_on_shoulder",
-  side_preference: "none",
-  visual_description: "brown leather tote with shoulder strap",
+  primary_item_type: "handbag",
+  items: [
+    {
+      item_type: "handbag",
+      attachment_strategy: "carried_on_shoulder",
+      side_preference: "none",
+      visual_description: "brown leather tote with shoulder strap",
+    },
+  ],
+  overall_description: "brown leather shoulder tote",
   key_features: ["brown leather", "shoulder strap", "open top"],
 };
 

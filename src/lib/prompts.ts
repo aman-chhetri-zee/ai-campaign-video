@@ -19,15 +19,24 @@ OUTPUT: strict JSON matching the response_schema.
 `.trim();
 
 export const PRODUCT_ANALYSIS_PROMPT = `
-Catalogue this product image for downstream AI video generation.
+Catalogue ALL wearable or holdable items visible in this product image. A
+single product image often shows an outfit or look with multiple items
+(e.g., a top together with a necklace). Enumerate every item.
+
+For each item, specify item_type, attachment_strategy, side_preference, and
+visual_description. Then provide a primary_item_type (the most prominent
+item, used as the catalog label), an overall_description summarising the
+look, and key_features capturing notable details across the items.
 
 CONSTRAINTS:
 - attachment_strategy must be one of:
   worn_on_wrist | worn_on_face | held_in_hand |
-  carried_on_shoulder | worn_around_neck | placed_on_surface
+  carried_on_shoulder | worn_around_neck | placed_on_surface |
+  worn_on_torso | worn_on_legs
 - side_preference must be one of:
   left_wrist | right_wrist | left_hand | right_hand | center | none
-- be precise about color and material — these drive product fidelity in the keyframe
+- be precise about color and material — these drive product fidelity
+- enumerate at least 1 item; the items array must not be empty
 
 OUTPUT: strict JSON matching the response_schema.
 `.trim();
@@ -95,7 +104,7 @@ Your keyframe_prompt MUST:
    and pose shown in IMAGE 1, but featuring the person from IMAGE 2
    (preserving their face exactly), naturally wearing/holding the
    products from IMAGE 3 onward."
-2. For EACH product, state explicit placement using its attachment_strategy.
+2. For EACH item across all products, state explicit placement using its attachment_strategy from the items array.
    Example: "The wristwatch from IMAGE 3 is worn on the LEFT wrist,
    clearly visible on the inside of the arm."
 3. Carry the template's lighting, framing, and composition_notes verbatim.

@@ -9,39 +9,47 @@ const TIMEOUT_MS = 60_000;
 const PRODUCT_RESPONSE_SCHEMA = {
   type: "object",
   properties: {
-    product_type: { type: "string" },
-    attachment_strategy: {
-      type: "string",
-      enum: [
-        "worn_on_wrist",
-        "worn_on_face",
-        "held_in_hand",
-        "carried_on_shoulder",
-        "worn_around_neck",
-        "placed_on_surface",
-      ],
+    primary_item_type: { type: "string" },
+    items: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        properties: {
+          item_type: { type: "string" },
+          attachment_strategy: {
+            type: "string",
+            enum: [
+              "worn_on_wrist",
+              "worn_on_face",
+              "held_in_hand",
+              "carried_on_shoulder",
+              "worn_around_neck",
+              "placed_on_surface",
+              "worn_on_torso",
+              "worn_on_legs",
+            ],
+          },
+          side_preference: {
+            type: "string",
+            enum: [
+              "left_wrist",
+              "right_wrist",
+              "left_hand",
+              "right_hand",
+              "center",
+              "none",
+            ],
+          },
+          visual_description: { type: "string" },
+        },
+        required: ["item_type", "attachment_strategy", "side_preference", "visual_description"],
+      },
     },
-    side_preference: {
-      type: "string",
-      enum: [
-        "left_wrist",
-        "right_wrist",
-        "left_hand",
-        "right_hand",
-        "center",
-        "none",
-      ],
-    },
-    visual_description: { type: "string" },
+    overall_description: { type: "string" },
     key_features: { type: "array", items: { type: "string" } },
   },
-  required: [
-    "product_type",
-    "attachment_strategy",
-    "side_preference",
-    "visual_description",
-    "key_features",
-  ],
+  required: ["primary_item_type", "items", "overall_description", "key_features"],
 };
 
 export async function analyzeProduct(input: {

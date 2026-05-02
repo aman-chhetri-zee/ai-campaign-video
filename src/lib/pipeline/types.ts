@@ -25,7 +25,9 @@ export type AttachmentStrategy =
   | "held_in_hand"
   | "carried_on_shoulder"
   | "worn_around_neck"
-  | "placed_on_surface";
+  | "placed_on_surface"
+  | "worn_on_torso"
+  | "worn_on_legs";
 
 export type SidePreference =
   | "left_wrist"
@@ -35,12 +37,18 @@ export type SidePreference =
   | "center"
   | "none";
 
-export type ProductMetadata = {
-  product_type: string;
+export type ProductItem = {
+  item_type: string;                     // "necklace", "top", "watch", etc.
   attachment_strategy: AttachmentStrategy;
   side_preference: SidePreference;
   visual_description: string;
-  key_features: string[];
+};
+
+export type ProductMetadata = {
+  primary_item_type: string;             // for catalog display ("necklace" or "outfit")
+  items: ProductItem[];                  // 1+ wearable/holdable items in the product image
+  overall_description: string;           // total summary used for prompt building
+  key_features: string[];                // notable features across all items
 };
 
 // ----- Stage 3 output -----

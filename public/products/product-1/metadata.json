@@ -1,12 +1,32 @@
 {
-  "product_type": "necklace",
-  "attachment_strategy": "worn_around_neck",
-  "side_preference": "center",
-  "visual_description": "A double-strand black beaded necklace. The two strands are layered, with the shorter one sitting higher on the neck and the longer one draping slightly lower. A small, black, ornate cross pendant hangs from the center of the longer strand. The chains appear to be made of small black beads.",
+  "primary_item_type": "camisole top",
+  "items": [
+    {
+      "item_type": "camisole top",
+      "attachment_strategy": "worn_on_torso",
+      "side_preference": "none",
+      "visual_description": "A dark red, possibly burgundy, camisole top made of a stretchy, flowy fabric. It features a sweetheart neckline with delicate lace-like trim, sheer flutter cap sleeves, and a ruched bust. The body drapes down to a layered, asymmetrical ruffled hem with a lettuce-edge finish."
+    },
+    {
+      "item_type": "jeans",
+      "attachment_strategy": "worn_on_legs",
+      "side_preference": "none",
+      "visual_description": "A pair of dark blue wash denim jeans. Only the high-waisted portion is visible, showing the waistband and top of the front."
+    },
+    {
+      "item_type": "necklace",
+      "attachment_strategy": "worn_around_neck",
+      "side_preference": "center",
+      "visual_description": "A black double-stranded necklace, styled like a choker. The strands are made of small black beads or a fine chain. A small, ornate black cross pendant hangs from the lower strand in the center."
+    }
+  ],
+  "overall_description": "A mannequin styled in a romantic goth or Y2K-inspired outfit. The look consists of a dark red, flowy camisole top with flutter sleeves and a ruffled hem, paired with dark blue jeans and a black, double-stranded cross necklace.",
   "key_features": [
-    "double-strand",
-    "black beads",
-    "cross pendant",
-    "layered design"
+    "Dark red camisole top",
+    "Sweetheart neckline with trim",
+    "Sheer flutter cap sleeves",
+    "Layered ruffled lettuce-edge hem",
+    "Double-stranded black beaded necklace",
+    "Ornate black cross pendant"
   ]
 }

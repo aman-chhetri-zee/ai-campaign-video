@@ -2,7 +2,7 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { extractFirstFrame } from "../../src/lib/pipeline/ffmpeg";
 import { compositeKeyframe } from "../../src/lib/pipeline/keyframe";
@@ -10,14 +10,14 @@ import { compositeKeyframe } from "../../src/lib/pipeline/keyframe";
 const KEYFRAME_PROMPT_FIXTURE = `
 Compose a single still image that recreates the scene and pose shown in IMAGE 1,
 but featuring the person from IMAGE 2 (preserving their face exactly), naturally
-wearing the product from IMAGE 3.
+wearing all the items shown in IMAGE 3.
 
-The product from IMAGE 3 — a double-strand black-beaded choker necklace with a
-small black cross pendant — is worn around the neck, center, with the pendant
-clearly visible at the front of the neck.
+The product look from IMAGE 3 includes the maroon top worn on the torso AND the
+black-beaded choker necklace with a small cross pendant worn around the neck,
+center front. Both items must be visible and rendered as shown.
 
 The scene's lighting, framing, camera angle, and composition style must match
-IMAGE 1 verbatim. Vertical 9:16 aspect ratio.
+IMAGE 1. Vertical 9:16 aspect ratio.
 
 The face must match IMAGE 2 EXACTLY — same eye shape, same skin tone, same hair,
 same distinctive features (nose stud, mole). Do not generate a different face.
@@ -39,13 +39,24 @@ async function main() {
     "test-fixtures/runs/template-1__product-1__face-A/keyframe.png",
   );
 
+  const productMetadataPath = resolve("public/products/product-1/metadata.json");
+  if (!existsSync(productMetadataPath)) {
+    throw new Error("product metadata not found — run `npm run ingest:products` first");
+  }
+  const productMetadata = JSON.parse(readFileSync(productMetadataPath, "utf-8"));
+  const productDescription = productMetadata.overall_description;
+
   console.log("[smoke-5] compositing keyframe (this can take 30-60s)...");
   const result = await compositeKeyframe({
     keyframePrompt: KEYFRAME_PROMPT_FIXTURE,
     templateFirstFrame: { bytes: readFileSync(firstFrame), mimeType: "image/png" },
     referenceFace: { bytes: readFileSync(facePath), mimeType: "image/png" },
     products: [
-      { bytes: readFileSync(necklacePath), mimeType: "image/png" },
+      {
+        bytes: readFileSync(necklacePath),
+        mimeType: "image/png",
+        description: productDescription,
+      },
     ],
   });
 
