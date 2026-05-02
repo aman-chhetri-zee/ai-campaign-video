@@ -68,6 +68,22 @@ async function fetchWithTimeout(
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Strip mannequin / styling language that confuses Imagen Customization into
+ * rendering a mannequin instead of the reference face subject.
+ */
+function sanitiseProductDescription(d: string): string {
+  return d
+    .replace(/\b(?:on a |displayed on a |styled on a |worn by a )?mannequin\b/gi, "")
+    .replace(/\bthe (?:look|outfit|ensemble) (?:consists of|features|includes)\b/gi, "an outfit comprising")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+// ---------------------------------------------------------------------------
 // Tier 1: Imagen 3 Customization with subject reference
 // ---------------------------------------------------------------------------
 
@@ -76,25 +92,19 @@ async function fetchWithTimeout(
  * We synthesize it programmatically — no extra Gemini call needed.
  * [1] = reference face person, [2] = product image.
  */
-function buildTier1Prompt(input: {
-  keyframePrompt: string;
-  products: ProductWithDescription[];
-}): string {
-  // Strip the "IMAGE 1/2/3" wording that refers to how the smoke script
-  // structured the prompt, and replace with [1]/[2] placeholders that
-  // the Customization API understands.
-  const base = input.keyframePrompt
+function buildTier1Prompt(keyframePrompt: string, productDescription: string): string {
+  const base = keyframePrompt
     .replace(/IMAGE\s+\d+/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  const productDesc = input.products[0]?.description ?? "product";
-
   return (
-    `Subject [1] as the featured person. Subject [2] is the product (${productDesc}). The person is wearing/holding all items as described. ` +
+    `Subject [1] is the featured person — full head-and-shoulders to chest-up portrait, ` +
+    `face fully visible in frame, NOT cropped above the chin. ` +
+    `Subject [2] is the product look (${productDescription}); render every item naturally on Subject [1]. ` +
     `${base} ` +
-    `Use Subject [1] as the person's face — identity preservation is highest priority. ` +
-    `Use Subject [2] exactly as shown.`
+    `The face from Subject [1] must be fully present, identity preserved exactly — same eyes, skin tone, hair, distinctive features. ` +
+    `Identity preservation is the highest priority. Vertical 9:16, head-and-shoulders to chest-up framing.`
   );
 }
 
@@ -105,12 +115,14 @@ async function tier1Customization(input: {
 }): Promise<{ imageBytes: Buffer; mimeType: string } | null> {
   const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-capability-001:predict`;
 
-  const prompt = buildTier1Prompt({ keyframePrompt: input.keyframePrompt, products: input.products });
+  const prompt = buildTier1Prompt(input.keyframePrompt, sanitiseProductDescription(input.products[0]?.description ?? "product"));
   console.log("[keyframe][tier1] prompt:", prompt.slice(0, 300));
 
   const faceB64 = input.referenceFace.bytes.toString("base64");
   const productB64 = input.products[0]?.bytes.toString("base64") ?? "";
-  const subjectDescription = input.products[0]?.description ?? "product";
+  const subjectDescription = sanitiseProductDescription(
+    input.products[0]?.description ?? "product",
+  );
 
   const referenceImages: object[] = [
     {
