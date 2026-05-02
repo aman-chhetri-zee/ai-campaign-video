@@ -10,6 +10,7 @@
     "ingest:templates": "tsx scripts/ingest-templates.ts",
     "ingest:products": "tsx scripts/ingest-products.ts",
     "smoke:1": "tsx scripts/smoke/smoke-stage-1.ts",
+    "smoke:2": "tsx scripts/smoke/smoke-stage-2.ts",
     "smoke:3": "tsx scripts/smoke/smoke-stage-3.ts",
     "smoke:4": "tsx scripts/smoke/smoke-stage-4.ts",
     "smoke:5": "tsx scripts/smoke/smoke-stage-5.ts",
