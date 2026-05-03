@@ -4,6 +4,8 @@ import type {
   ProductMetadata,
   FaceMetadata,
 } from "./pipeline/types";
+import type { FramingScope } from "./pipeline/framing";
+import { framingInstruction } from "./pipeline/framing";
 
 export const TEMPLATE_ANALYSIS_PROMPT = `
 You are analyzing a short reference video that will guide AI video generation.
@@ -88,14 +90,16 @@ export function buildOrchestrationPrompt(
   template: TemplateMetadata,
   products: ProductMetadata[],
   face: FaceMetadata,
-  options?: { look_index?: number; total_looks?: number },
+  options?: { look_index?: number; total_looks?: number; framing_scope?: FramingScope },
 ): string {
   const idx = options?.look_index ?? 0;
   const total = options?.total_looks ?? 1;
+  const framingScope = options?.framing_scope ?? "chest_up";
   const archetypes = template.pose_archetypes && template.pose_archetypes.length > 0
     ? template.pose_archetypes
     : ["confident"];
   const poseForThisLook = archetypes[idx % archetypes.length];
+  const framingText = framingInstruction(framingScope);
 
   return `
 You are composing prompts for two AI models in a video pipeline.
@@ -108,6 +112,7 @@ INPUTS:
 - face_analysis: ${JSON.stringify(face, null, 2)}
 - look_position: ${idx + 1} of ${total}
 - assigned_pose_archetype_for_this_look: "${poseForThisLook}"
+- required_framing: "${framingScope}" — ${framingText}
 
 ----------------------------------------------------------------------
 keyframe_prompt — for Imagen 3 Customization (multi-image input).
@@ -122,10 +127,12 @@ Your keyframe_prompt MUST:
    naturally wearing/holding the products from IMAGE 3 onward."
 2. EXPLICITLY adopt the template's style — quote it: "${template.style?.lens ?? "natural"}; ${template.style?.color_treatment ?? "natural color"}; ${template.style?.lighting_effects ?? "natural lighting"}; ${(template.style?.special_effects ?? []).join(", ")}".
 3. EXPLICITLY adopt the assigned pose archetype: "${poseForThisLook} pose, leaning toward
-   the camera with intent, head-and-shoulders to chest-up framing".
-4. For EACH item across all products' items, state explicit placement using its
-   attachment_strategy.
-5. End with the identity lock:
+   the camera with intent".
+4. EXPLICITLY adopt the required framing: ${framingText}
+5. For EACH item across all products' items, state explicit placement using its
+   attachment_strategy. If framing is "full_body", footwear must be explicitly described
+   as visible at the feet.
+6. End with the identity lock:
    "The face must match IMAGE 2 EXACTLY — same eye shape, same skin tone, same hair,
    same distinctive features described in face_analysis (note these specifically:
    ${face.distinctive_features}). Do not generate a different face. Identity preservation

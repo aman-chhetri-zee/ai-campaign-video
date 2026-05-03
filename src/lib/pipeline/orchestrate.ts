@@ -7,6 +7,7 @@ import type {
   FaceMetadata,
   OrchestratedPrompts,
 } from "./types";
+import type { FramingScope } from "./framing";
 
 const MODEL = "gemini-2.5-pro";
 const TIMEOUT_MS = 60_000;
@@ -25,7 +26,7 @@ export async function orchestratePrompts(input: {
   template: TemplateMetadata;
   products: ProductMetadata[];
   face: FaceMetadata;
-  options?: { look_index?: number; total_looks?: number };
+  options?: { look_index?: number; total_looks?: number; framing_scope?: FramingScope };
 }): Promise<OrchestratedPrompts> {
   const ai = getGenAIClient();
   const prompt = buildOrchestrationPrompt(input.template, input.products, input.face, input.options);

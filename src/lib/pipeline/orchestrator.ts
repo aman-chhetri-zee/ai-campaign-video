@@ -4,6 +4,7 @@ import { resolve, join } from "node:path";
 import { analyzeReferenceFace } from "./face-analysis";
 import { orchestratePrompts } from "./orchestrate";
 import { compositeKeyframe } from "./keyframe";
+import { inferFramingScope } from "./framing";
 import { judgeKeyframe } from "./judge";
 import { generateVideoFromKeyframe } from "./kling";
 import { concatClips } from "./concat";
@@ -69,6 +70,8 @@ async function processLook(args: {
   runDir: string;
 }): Promise<{ keyframePath: string; clipPath: string; keyframe_url: string; clip_url: string }> {
   const products = args.look.product_ids.map(loadProduct);
+  const framingScope = inferFramingScope(products.map((p) => p.metadata));
+  console.log(`[orchestrator] look ${args.look_index} framing_scope: ${framingScope}`);
 
   // Stage 4 — orchestrate prompts for THIS look
   updateRun(args.run_id, {
@@ -80,7 +83,7 @@ async function processLook(args: {
     template: args.template.metadata,
     products: products.map((p) => p.metadata),
     face: args.face_metadata,
-    options: { look_index: args.look_index, total_looks: args.total_looks },
+    options: { look_index: args.look_index, total_looks: args.total_looks, framing_scope: framingScope },
   });
 
   // Stage 5 — keyframe
@@ -102,6 +105,7 @@ async function processLook(args: {
     referenceFace: { bytes: args.referenceFaceBytes, mimeType: args.referenceFaceMimeType },
     products: productImages,
     faceDescription: args.faceDescription,
+    framingScope,
   });
 
   // Stage 5b — judge with one retry
@@ -130,6 +134,7 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
       referenceFace: { bytes: args.referenceFaceBytes, mimeType: args.referenceFaceMimeType },
       products: productImages,
       faceDescription: args.faceDescription,
+      framingScope,
     });
   }
 
