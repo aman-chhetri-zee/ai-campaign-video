@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "camisole crop top",
+  "items": [
+    {
+      "item_type": "camisole crop top",
+      "attachment_strategy": "worn_on_torso",
+      "side_preference": "center",
+      "visual_description": "A solid black, ribbed-knit camisole crop top featuring thin spaghetti straps and a V-neckline. The neckline has a distinct pointed detail at the center of the V."
+    }
+  ],
+  "overall_description": "This is a minimalist black camisole crop top made from a ribbed fabric. It has a form-fitting silhouette with slender spaghetti straps and a V-shaped neckline, making it a versatile basic piece.",
+  "key_features": [
+    "Ribbed knit texture",
+    "Spaghetti straps",
+    "V-neckline",
+    "Crop length",
+    "Solid black color"
+  ]
+}

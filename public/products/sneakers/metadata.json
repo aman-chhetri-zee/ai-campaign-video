@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "sneaker",
+  "items": [
+    {
+      "item_type": "sneaker",
+      "attachment_strategy": "worn_on_legs",
+      "side_preference": "none",
+      "visual_description": "A low-profile, off-white sneaker with a unique design. The upper is made of a smooth, possibly leather or synthetic material, featuring extensive laser-cut perforations in a dash-and-dot pattern across the sides and toe box. The lacing system is unconventional, with thin, light pinkish-beige laces that appear to wrap around the ankle. The sole is a solid, chunky off-white platform with a subtle curve. A small, debossed Nike swoosh is visible on the side, and 'AIR' branding is present on the heel of the midsole."
+    }
+  ],
+  "overall_description": "This is a single off-white Nike sneaker presented against a plain white background. The shoe is notable for its minimalist yet detailed design, featuring a perforated upper and a distinctive ankle-wrap lacing system in a contrasting light pinkish-beige hue, giving it a modern and fashion-forward look.",
+  "key_features": [
+    "Perforated upper design",
+    "Ankle-wrap lacing system",
+    "Monochromatic off-white color",
+    "Chunky platform sole",
+    "Debossed Nike branding"
+  ]
+}

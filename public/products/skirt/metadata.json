@@ -1,0 +1,18 @@
+{
+  "primary_item_type": "mini skirt",
+  "items": [
+    {
+      "item_type": "mini skirt",
+      "attachment_strategy": "worn_on_legs",
+      "side_preference": "center",
+      "visual_description": "A short, A-line mini skirt featuring a classic black and white Glen plaid pattern. The pattern combines houndstooth and check motifs, creating a textured, graphic look. The fabric appears to be a structured woven material."
+    }
+  ],
+  "overall_description": "This product image features a classic black and white Glen plaid mini skirt. Its A-line cut and iconic pattern create a timeless yet modern look.",
+  "key_features": [
+    "Glen plaid pattern",
+    "Mini skirt length",
+    "Black and white color scheme",
+    "Textured woven fabric"
+  ]
+}

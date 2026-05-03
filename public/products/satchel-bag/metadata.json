@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "handbag",
+  "items": [
+    {
+      "item_type": "handbag",
+      "attachment_strategy": "carried_on_shoulder",
+      "side_preference": "none",
+      "visual_description": "A small, dusty pink clutch-style handbag with a quilted diamond stitch pattern. It features a prominent gold-toned metal frame with a kiss-lock clasp. A matching gold-toned chain strap is attached to loops on the frame."
+    }
+  ],
+  "overall_description": "An elegant, vintage-inspired mini handbag in a dusty pink color. The bag is characterized by its quilted faux leather body, a shiny gold metal frame with a classic kiss-lock closure, and a delicate gold chain strap for carrying.",
+  "key_features": [
+    "Quilted diamond pattern",
+    "Dusty pink faux leather",
+    "Gold-toned metal frame",
+    "Kiss-lock clasp closure",
+    "Gold-toned chain strap"
+  ]
+}

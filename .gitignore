@@ -9,6 +9,8 @@ node_modules
 !package.json
 !package-lock.json
 !tsconfig.json
+# Pipeline asset metadata (cached Gemini analyses) — track so a fresh clone has a usable catalog
+!metadata.json
 vertex-tester*.json
 *-credentials.json
 *-service-account.json

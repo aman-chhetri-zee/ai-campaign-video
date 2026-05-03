@@ -1,0 +1,31 @@
+{
+  "primary_item_type": "Knee-high boots",
+  "items": [
+    {
+      "item_type": "Knee-high boots",
+      "attachment_strategy": "worn_on_legs",
+      "side_preference": "none",
+      "visual_description": "A pair of black, knee-high boots made of a suede-like material. They feature a rounded toe, a low, black chunky heel, and a decorative black strap with a silver-colored D-ring buckle around the ankle."
+    },
+    {
+      "item_type": "Eyeglasses",
+      "attachment_strategy": "placed_on_surface",
+      "side_preference": "none",
+      "visual_description": "A pair of wire-frame eyeglasses with round lenses and thin silver-colored frames, placed on the floor as a prop."
+    },
+    {
+      "item_type": "Wireless earbuds",
+      "attachment_strategy": "placed_on_surface",
+      "side_preference": "none",
+      "visual_description": "A pair of black wireless earbuds and their charging case, placed on the floor near the boots."
+    }
+  ],
+  "overall_description": "A product shot of stylish black knee-high boots made from a suede-like fabric, displayed on a fluffy white rug. The boots have a low, blocky heel and are accented with a strap and silver-colored buckle around the ankle. The scene is accessorized with props, including a pair of round, wire-rimmed eyeglasses and black wireless earbuds, placed on the floor to create a modern aesthetic.",
+  "key_features": [
+    "Knee-high design",
+    "Black suede-like material",
+    "Ankle strap with silver-colored D-ring buckle",
+    "Low, chunky heel",
+    "Rounded toe"
+  ]
+}

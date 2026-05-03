@@ -1,0 +1,20 @@
+{
+  "primary_item_type": "handbag",
+  "items": [
+    {
+      "item_type": "handbag",
+      "attachment_strategy": "held_in_hand",
+      "side_preference": "none",
+      "visual_description": "A structured, rectangular handbag made from a smooth black material, likely faux leather. It features two rolled top handles and a detachable, adjustable shoulder strap. All hardware, including the rectangular handle connectors, strap buckle, and a small brand plaque on the lower front, is a polished gold-tone metal. A single vertical seam runs down the center front of the bag."
+    }
+  ],
+  "overall_description": "A classic black handbag is presented on a marble surface. The bag has a structured, elegant silhouette with clean lines, featuring both top handles and a longer shoulder strap for versatile carrying options. The design is accented with polished gold-tone hardware which contrasts beautifully with the deep black color of the bag.",
+  "key_features": [
+    "Structured rectangular shape",
+    "Smooth black faux leather material",
+    "Dual top handles",
+    "Detachable and adjustable shoulder strap",
+    "Polished gold-tone hardware",
+    "Embossed gold-tone brand plaque"
+  ]
+}

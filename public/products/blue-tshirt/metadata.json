@@ -1,0 +1,18 @@
+{
+  "primary_item_type": "top",
+  "items": [
+    {
+      "item_type": "top",
+      "attachment_strategy": "worn_on_torso",
+      "side_preference": "none",
+      "visual_description": "A blue and navy striped top made of a soft knit fabric. It features an asymmetric, wide neckline that drapes off one shoulder, short dolman-style sleeves, and ruching along one side seam creating a draped effect across the torso."
+    }
+  ],
+  "overall_description": "A stylish blue and navy striped top with a unique asymmetric design. It has a wide, draping neckline that can be worn off the shoulder, short dolman sleeves, and flattering ruching on the side.",
+  "key_features": [
+    "Blue and navy horizontal stripes",
+    "Asymmetric wide neckline",
+    "Short dolman sleeves",
+    "Side ruching detail"
+  ]
+}
