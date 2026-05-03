@@ -1,7 +1,19 @@
 // src/lib/pipeline/run-store.ts
 import type { RunState, RunStatus } from "./types";
 
-const runs = new Map<string, RunState>();
+// Pin the Map onto globalThis so it survives Next.js dev-mode HMR module
+// re-evaluation. Without this, the POST /generate route stores a run in one
+// Map instance and the GET /runs/:id route reads from a freshly-created Map,
+// returning {error: "not found"} for every poll.
+const globalForRuns = globalThis as unknown as {
+  __video_poc_runs?: Map<string, RunState>;
+};
+
+const runs: Map<string, RunState> =
+  globalForRuns.__video_poc_runs ?? new Map<string, RunState>();
+if (!globalForRuns.__video_poc_runs) {
+  globalForRuns.__video_poc_runs = runs;
+}
 
 export function createRun(input: {
   template_id: string;
