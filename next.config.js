@@ -21,9 +21,16 @@ const nextConfig = {
       "fluent-ffmpeg",
       "@vercel/blob",
     ],
-    // Belt-and-braces: also exclude from output file tracing.
+    // Belt-and-braces: also exclude from output file tracing. The big
+    // contributor is `public/` — Next.js's tracer follows the `readFileSync`
+    // calls in the orchestrator and pulls every template/product asset into
+    // the function bundle (60MB videos × 5 templates = ~300MB). Since the
+    // pipeline runs locally only, the function never reads these on Vercel.
     outputFileTracingExcludes: {
       "*": [
+        "public/**",
+        "test-fixtures/**",
+        "scripts/**",
         "node_modules/@google-cloud/**",
         "node_modules/@google/**",
         "node_modules/google-auth-library/**",
