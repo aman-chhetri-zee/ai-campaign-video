@@ -1,13 +1,14 @@
 import { config } from "dotenv";
-config({ path: "/Users/vc.aman.chhetri/Desktop/Codes/ai-campaign-video/.env.local" });
+config({ path: ".env.local" });
 
-import { uploadToBlob } from "/Users/vc.aman.chhetri/Desktop/Codes/ai-campaign-video/src/lib/pipeline/upload";
+import { uploadToBlob } from "../src/lib/pipeline/upload";
 import { readFileSync } from "node:fs";
 import { createHmac } from "node:crypto";
+import { resolve } from "node:path";
 
 async function main() {
   const kfBytes = readFileSync(
-    "/Users/vc.aman.chhetri/Desktop/Codes/ai-campaign-video/public/runs/run_1777832253604_btm3fa/keyframe-0.png",
+    resolve("public/runs/run_1777832253604_btm3fa/keyframe-0.png"),
   );
   console.log("uploading keyframe to blob...");
   const kfUrl = await uploadToBlob("probe/kf-" + Date.now() + ".png", kfBytes, "image/png");
