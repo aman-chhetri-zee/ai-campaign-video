@@ -8,6 +8,7 @@ import { judgeKeyframe } from "./judge";
 import { generateVideoFromKeyframe } from "./kling";
 import { concatClips } from "./concat";
 import { updateRun, getRun } from "./run-store";
+import { uploadToBlob } from "./upload";
 import type {
   TemplateAsset,
   ProductAsset,
@@ -15,6 +16,11 @@ import type {
   ProductMetadata,
   Look,
 } from "./types";
+
+const VERCEL_DEPLOYMENT_URL =
+  process.env.VERCEL_DEPLOYMENT_URL ?? "https://ai-campaign-video.vercel.app";
+
+const USE_MOTION_CONTROL = () => process.env.KLING_USE_MOTION_CONTROL === "true";
 
 function loadTemplate(template_id: string): TemplateAsset {
   const dir = resolve("public/templates", template_id);
@@ -146,6 +152,33 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
   const poseArchetype = archetypes[args.look_index % archetypes.length];
   const motionReferenceVideoPath = resolve("public", args.template.video_path);
 
+  let keyframeUrl: string | undefined;
+  let motionReferenceUrl: string | undefined;
+
+  if (USE_MOTION_CONTROL()) {
+    // Build the template's HTTPS URL on the deployed Vercel site
+    motionReferenceUrl = `${VERCEL_DEPLOYMENT_URL}/${args.template.video_path}`;
+
+    // Upload this look's keyframe to Vercel Blob, get a public URL
+    try {
+      keyframeUrl = await uploadToBlob(
+        `keyframes/${args.run_id}/look-${args.look_index}.png`,
+        keyframe.imageBytes,
+        keyframe.mimeType,
+      );
+      console.log(
+        `[orchestrator] uploaded keyframe ${args.look_index} to blob: ${keyframeUrl}`,
+      );
+    } catch (err) {
+      console.warn(
+        `[orchestrator] keyframe upload failed for look ${args.look_index}, falling back to image-to-video:`,
+        (err as Error).message,
+      );
+      keyframeUrl = undefined;
+      motionReferenceUrl = undefined;
+    }
+  }
+
   const video = await generateVideoFromKeyframe({
     keyframeBytes: keyframe.imageBytes,
     keyframeMimeType: keyframe.mimeType,
@@ -154,7 +187,9 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
     durationSeconds: 5,
     aspectRatio: "9:16",
     poseArchetype,                 // drives camera_control (Path 1)
-    motionReferenceVideoPath,      // reference video for Motion Control (Path 2)
+    motionReferenceVideoPath,      // reference video for Motion Control (Path 2, legacy fallback)
+    keyframeUrl,                   // HTTPS URL for motion control (Path 2)
+    motionReferenceUrl,            // HTTPS URL for motion control (Path 2)
   });
 
   const clipPath = join(args.runDir, `clip-${args.look_index}.mp4`);

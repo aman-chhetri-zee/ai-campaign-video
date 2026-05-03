@@ -1,6 +1,5 @@
 // src/lib/pipeline/kling.ts
 import { createHmac } from "node:crypto";
-import { readFileSync } from "node:fs";
 
 // Read env vars lazily (inside functions) so dotenv.config() in the calling
 // script has time to populate process.env before these are evaluated.
@@ -12,16 +11,9 @@ const POLL_INTERVAL_MS = 5_000;
 const POLL_MAX_ATTEMPTS = 60;
 
 // Lazy getters — read at call time, not at module load time.
-function getUseMotionControl(): boolean {
-  return process.env.KLING_USE_MOTION_CONTROL === "true";
-}
-
 function getModelId(): string {
   return process.env.KLING_MODEL_ID ?? "kling-v1-5";
 }
-
-const MOTION_CONTROL_MODEL =
-  process.env.KLING_MOTION_CONTROL_MODEL ?? "kling-v2-6";
 
 // ---------------------------------------------------------------------------
 // Camera control types
@@ -251,52 +243,20 @@ async function generateViaImageToVideoWithCamera(input: {
 }
 
 // ---------------------------------------------------------------------------
-// Path 2 — Motion Control product (kling-v2-6+, env-flagged)
+// Path 2 — Motion Control product (kling-v2-6+, URL-based)
 // ---------------------------------------------------------------------------
 
 async function generateViaMotionControl(input: {
-  keyframeBytes: Buffer;
-  keyframeMimeType: string;
+  keyframeUrl: string;
+  motionReferenceUrl: string;
   motionPrompt: string;
   negativePrompt: string;
-  motionReferenceVideoPath: string;
   durationSeconds: 5 | 10;
-  aspectRatio?: "9:16" | "1:1" | "16:9";
-  /** Optional pre-hosted HTTPS URL for the keyframe image. */
-  keyframeUrl?: string;
-  /** Optional pre-hosted HTTPS URL for the reference video (replaces local path). */
-  motionReferenceVideoUrl?: string;
+  aspectRatio: "9:16" | "1:1" | "16:9";
 }): Promise<{ videoBytes: Buffer; videoUrl: string }> {
-  // Motion Control API (confirmed via live probing):
-  //   POST /v1/videos/motion-control
-  //   Fields: model_name, image_url (HTTPS), video_url (HTTPS), mode ("pro"|"std"),
-  //           character_orientation ("0"|"1"|"image"), keep_audio, prompt, negative_prompt
-  //
-  // IMPORTANT: The API only accepts HTTPS URLs — base64 payloads are NOT supported.
-  // Set KLING_KEYFRAME_URL and KLING_MOTION_REFERENCE_URL in .env.local to the
-  // publicly hosted CDN/bucket URLs for your keyframe and reference video.
-  const imageUrl =
-    input.keyframeUrl ?? process.env.KLING_KEYFRAME_URL;
-  const videoUrl =
-    input.motionReferenceVideoUrl ?? process.env.KLING_MOTION_REFERENCE_URL;
-
-  if (!imageUrl || !videoUrl) {
-    console.warn(
-      "[kling][motion-control] KLING_KEYFRAME_URL and/or KLING_MOTION_REFERENCE_URL are not set.",
-      "\n  Motion Control requires publicly hosted HTTPS URLs (base64 is NOT supported by the API).",
-      "\n  Upload your keyframe PNG and template video.mp4 to a public CDN/bucket,",
-      "\n  then set KLING_KEYFRAME_URL and KLING_MOTION_REFERENCE_URL in .env.local.",
-      "\n  Falling back to image-to-video with camera_control.",
-    );
-    return generateViaImageToVideoWithCamera({
-      ...input,
-      poseArchetype: undefined,
-      aspectRatio: input.aspectRatio ?? "9:16",
-    });
-  }
-
+  const model = process.env.KLING_MOTION_CONTROL_MODEL ?? "kling-v2-6";
   console.log(
-    `[kling][motion-control] submitting: image_url=${imageUrl.slice(0, 60)}... video_url=${videoUrl.slice(0, 60)}...`,
+    `[kling][motion-control] model=${model} keyframe=${input.keyframeUrl.slice(0, 80)} reference=${input.motionReferenceUrl.slice(0, 80)}`,
   );
 
   let taskId: string;
@@ -304,12 +264,11 @@ async function generateViaMotionControl(input: {
     const submit = await fetchJson("/v1/videos/motion-control", {
       method: "POST",
       body: JSON.stringify({
-        model_name: MOTION_CONTROL_MODEL,
-        image_url: imageUrl,
-        video_url: videoUrl,
-        mode: "pro",
-        character_orientation: "image",
-        keep_audio: false,
+        model_name: model,
+        image_url: input.keyframeUrl,
+        video_url: input.motionReferenceUrl,
+        mode: "pro",                    // motion control likely requires pro mode
+        character_orientation: "image", // output proportions match keyframe
         prompt: input.motionPrompt,
         negative_prompt: input.negativePrompt,
       }),
@@ -321,19 +280,12 @@ async function generateViaMotionControl(input: {
       );
     console.log(`[kling][motion-control] submitted task ${taskId}`);
   } catch (err) {
-    // Surface the error clearly so the user can adjust, then fall back.
-    console.warn(
-      "[kling][motion-control] submit failed — falling back to image-to-video.",
-      "\n  Error:", (err as Error).message,
+    throw new Error(
+      `Kling motion-control submit failed: ${(err as Error).message}`,
     );
-    return generateViaImageToVideoWithCamera({
-      ...input,
-      poseArchetype: undefined,
-      aspectRatio: input.aspectRatio ?? "9:16",
-    });
   }
 
-  // Poll (same shape as image-to-video)
+  // Poll
   for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     const poll = await fetchJson(`/v1/videos/motion-control/${taskId}`);
@@ -348,7 +300,7 @@ async function generateViaMotionControl(input: {
         poll.task_result?.videos?.[0]?.url;
       if (!videoUrl)
         throw new Error(
-          `Kling motion-control: no video URL in result: ${JSON.stringify(poll).slice(0, 300)}`,
+          `no video URL in motion-control result: ${JSON.stringify(poll).slice(0, 300)}`,
         );
       const videoRes = await fetch(videoUrl);
       const buf = Buffer.from(await videoRes.arrayBuffer());
@@ -377,31 +329,28 @@ export async function generateVideoFromKeyframe(input: {
   aspectRatio: "9:16" | "1:1" | "16:9";
   /** Drives camera_control on the image-to-video path (Path 1). */
   poseArchetype?: string;
-  /** Absolute fs path to the template reference video. Required for Path 2. */
+  /** Absolute fs path to the template reference video (kept for fallback / legacy callers). */
   motionReferenceVideoPath?: string;
-  /**
-   * Pre-hosted HTTPS URL for the keyframe image (Path 2 / Motion Control only).
-   * Falls back to KLING_KEYFRAME_URL env var. Motion Control does NOT support base64.
-   */
+  /** HTTPS URL for the keyframe image — required for motion control (Path 2). */
   keyframeUrl?: string;
-  /**
-   * Pre-hosted HTTPS URL for the reference video (Path 2 / Motion Control only).
-   * Falls back to KLING_MOTION_REFERENCE_URL env var. Motion Control does NOT support base64.
-   */
-  motionReferenceVideoUrl?: string;
+  /** HTTPS URL for the reference video — required for motion control (Path 2). */
+  motionReferenceUrl?: string;
 }): Promise<{ videoBytes: Buffer; videoUrl: string }> {
-  if (getUseMotionControl() && input.motionReferenceVideoPath) {
+  const useMotionControl =
+    process.env.KLING_USE_MOTION_CONTROL === "true" &&
+    !!input.keyframeUrl &&
+    !!input.motionReferenceUrl;
+
+  if (useMotionControl) {
     return generateViaMotionControl({
-      keyframeBytes: input.keyframeBytes,
-      keyframeMimeType: input.keyframeMimeType,
+      keyframeUrl: input.keyframeUrl!,
+      motionReferenceUrl: input.motionReferenceUrl!,
       motionPrompt: input.motionPrompt,
       negativePrompt: input.negativePrompt,
-      motionReferenceVideoPath: input.motionReferenceVideoPath,
       durationSeconds: input.durationSeconds,
       aspectRatio: input.aspectRatio,
-      keyframeUrl: input.keyframeUrl,
-      motionReferenceVideoUrl: input.motionReferenceVideoUrl,
     });
   }
+
   return generateViaImageToVideoWithCamera(input);
 }
