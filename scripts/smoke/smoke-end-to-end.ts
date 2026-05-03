@@ -14,7 +14,10 @@ async function main() {
 
   const run = createRun({
     template_id: "template-1",
-    product_ids: ["product-1"],
+    looks: [
+      { product_ids: ["product-1"] },
+      { product_ids: ["black-top", "skirt"] },
+    ],
     reference_face_path: facePath,
   });
 
@@ -30,9 +33,12 @@ async function main() {
     throw new Error(`pipeline did not succeed: ${final.status} ${final.error}`);
   }
   if (!final.video_url) throw new Error("missing video_url");
-  if (!final.keyframe_url) throw new Error("missing keyframe_url");
+  if (!final.per_look_clip_urls || final.per_look_clip_urls.length !== 2) {
+    throw new Error("expected 2 per_look_clip_urls");
+  }
 
   console.log("[smoke-e2e] PASS — video at:", final.video_url);
+  console.log("[smoke-e2e] per_look_clip_urls:", final.per_look_clip_urls);
 }
 
 main().catch((err) => {

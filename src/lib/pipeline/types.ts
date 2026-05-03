@@ -76,12 +76,18 @@ export type JudgeReport = {
   issues: string[];
 };
 
+// ----- Look (one outfit = one shot) -----
+export type Look = {
+  product_ids: string[]; // 1-3 items per look
+};
+
 // ----- Run state (in-memory store) -----
 export type RunStatus =
   | "analyzing_face"
   | "orchestrating"
   | "compositing_keyframe"
   | "generating_video"
+  | "concatenating"
   | "succeeded"
   | "failed";
 
@@ -90,10 +96,13 @@ export type RunState = {
   status: RunStatus;
   progress_label: string;
   template_id: string;
-  product_ids: string[];
+  looks: Look[];
   reference_face_path: string;
-  keyframe_url?: string;
-  video_url?: string;
+  current_look_index?: number;
+  total_looks?: number;
+  per_look_keyframe_urls?: string[];
+  per_look_clip_urls?: string[];
+  video_url?: string; // populated only after final concat
   error?: string;
   started_at: number;
 };

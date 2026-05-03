@@ -16,10 +16,14 @@ type RunStatusResponse = {
     | "orchestrating"
     | "compositing_keyframe"
     | "generating_video"
+    | "concatenating"
     | "succeeded"
     | "failed";
   progress_label: string;
-  keyframe_url?: string;
+  current_look_index?: number;
+  total_looks?: number;
+  per_look_keyframe_urls?: string[];
+  per_look_clip_urls?: string[];
   video_url?: string;
   error?: string;
 };
@@ -78,7 +82,7 @@ export default function VideoPocPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           template_id: templateId,
-          product_ids: productIds,
+          looks: [{ product_ids: productIds }],
           reference_face_base64: base64,
         }),
       });
@@ -190,16 +194,21 @@ export default function VideoPocPage() {
           </div>
           <p className="text-sm">{run.progress_label}</p>
 
-          {run.keyframe_url && !run.video_url && run.status !== "failed" && (
+          {run.per_look_keyframe_urls && run.per_look_keyframe_urls.length > 0 && !run.video_url && run.status !== "failed" && (
             <div>
               <p className="text-xs text-gray-500 mb-1">
                 Identity locked, rendering motion...
               </p>
-              <img
-                src={run.keyframe_url}
-                alt="keyframe"
-                className="max-w-xs rounded"
-              />
+              <div className="flex flex-wrap gap-2">
+                {run.per_look_keyframe_urls.map((url, i) => (
+                  <img
+                    key={i}
+                    src={url}
+                    alt={`keyframe look ${i + 1}`}
+                    className="max-w-[8rem] rounded"
+                  />
+                ))}
+              </div>
             </div>
           )}
 

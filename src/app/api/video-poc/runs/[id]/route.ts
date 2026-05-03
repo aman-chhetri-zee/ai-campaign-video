@@ -14,7 +14,10 @@ export async function GET(
     run_id: run.run_id,
     status: run.status,
     progress_label: run.progress_label,
-    keyframe_url: run.keyframe_url,
+    current_look_index: run.current_look_index,
+    total_looks: run.total_looks,
+    per_look_keyframe_urls: run.per_look_keyframe_urls,
+    per_look_clip_urls: run.per_look_clip_urls,
     video_url: run.video_url,
     error: run.error,
   });

@@ -11,22 +11,30 @@ export const maxDuration = 300; // 5 min, matches Kling poll budget
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { template_id, product_ids, reference_face_base64 } = body;
+    const { template_id, looks, reference_face_base64 } = body;
 
     if (!template_id || typeof template_id !== "string") {
       return NextResponse.json({ error: "template_id required" }, { status: 400 });
     }
-    if (!Array.isArray(product_ids) || product_ids.length < 1 || product_ids.length > 2) {
-      return NextResponse.json(
-        { error: "product_ids must be array of 1–2 strings" },
-        { status: 400 },
-      );
+    if (!Array.isArray(looks) || looks.length < 1 || looks.length > 4) {
+      return NextResponse.json({ error: "looks must be array of 1–4 items" }, { status: 400 });
+    }
+    for (const look of looks) {
+      if (
+        !look ||
+        !Array.isArray(look.product_ids) ||
+        look.product_ids.length < 1 ||
+        look.product_ids.length > 3 ||
+        !look.product_ids.every((id: any) => typeof id === "string")
+      ) {
+        return NextResponse.json(
+          { error: "each look must have product_ids: array of 1–3 strings" },
+          { status: 400 },
+        );
+      }
     }
     if (!reference_face_base64 || typeof reference_face_base64 !== "string") {
-      return NextResponse.json(
-        { error: "reference_face_base64 required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "reference_face_base64 required" }, { status: 400 });
     }
 
     const buf = Buffer.from(reference_face_base64, "base64");
@@ -40,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     const run = createRun({
       template_id,
-      product_ids,
+      looks,
       reference_face_path: facePath,
     });
 

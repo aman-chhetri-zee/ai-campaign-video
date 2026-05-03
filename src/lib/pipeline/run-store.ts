@@ -1,5 +1,5 @@
 // src/lib/pipeline/run-store.ts
-import type { RunState, RunStatus } from "./types";
+import type { RunState, RunStatus, Look } from "./types";
 
 // Pin the Map onto globalThis so it survives Next.js dev-mode HMR module
 // re-evaluation. Without this, the POST /generate route stores a run in one
@@ -17,7 +17,7 @@ if (!globalForRuns.__video_poc_runs) {
 
 export function createRun(input: {
   template_id: string;
-  product_ids: string[];
+  looks: Look[];
   reference_face_path: string;
 }): RunState {
   const run_id = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -26,8 +26,10 @@ export function createRun(input: {
     status: "analyzing_face",
     progress_label: "Reading reference identity…",
     template_id: input.template_id,
-    product_ids: input.product_ids,
+    looks: input.looks,
     reference_face_path: input.reference_face_path,
+    total_looks: input.looks.length,
+    current_look_index: 0,
     started_at: Date.now(),
   };
   runs.set(run_id, state);
@@ -43,6 +45,7 @@ const LABELS: Record<RunStatus, string> = {
   orchestrating: "Composing scene…",
   compositing_keyframe: "Placing products and locking identity…",
   generating_video: "Rendering motion…",
+  concatenating: "Stitching final video…",
   succeeded: "Done",
   failed: "Failed",
 };
