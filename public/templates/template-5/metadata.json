@@ -1,0 +1,47 @@
+{
+  "scene_description": "A person with a gothic aesthetic poses against a pillar, walks towards the camera, and strikes several poses in front of a brick building with large wooden doors.",
+  "subject": {
+    "rough_pose": "standing, walking, posing",
+    "framing": "full-body shot",
+    "lighting": "natural diffused daylight"
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 2,
+      "action": "Subject stands still, leaning against a stone pillar, looking at the camera."
+    },
+    {
+      "t_start": 2,
+      "t_end": 6.5,
+      "action": "Subject walks slowly and deliberately towards the camera."
+    },
+    {
+      "t_start": 6.5,
+      "t_end": 8.5,
+      "action": "Subject stops, runs both hands through their hair, and looks up and to the right."
+    },
+    {
+      "t_start": 8.5,
+      "t_end": 11.5,
+      "action": "Subject turns their body to their left profile, poses, then glances over their shoulder at the camera with a slight smile."
+    }
+  ],
+  "composition_notes": "The shot is static, maintaining a centered, full-body composition of the subject. The background architecture provides strong vertical lines that frame the subject.",
+  "style": {
+    "lens": "natural 50mm",
+    "color_treatment": "natural and realistic with slightly muted tones",
+    "lighting_effects": "soft, even daylight",
+    "special_effects": []
+  },
+  "pose_archetypes": [
+    "confident",
+    "poised",
+    "stylish",
+    "dramatic"
+  ],
+  "energy": "slow and confident posing",
+  "shot_backgrounds": [
+    "An outdoor covered walkway with large stone pillars, a red brick building wall, and tall wooden doors on a grey tiled floor."
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "scene_description": "A person models an outfit in a studio setting. They walk into the frame, stop at the center, and strike a series of poses, including lifting each leg to look at their shoes.",
+  "subject": {
+    "rough_pose": "Standing",
+    "framing": "Full shot",
+    "lighting": "Soft frontal lighting"
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 3.5,
+      "action": "A person walks from screen left to the center, turning to face the camera as they stop."
+    },
+    {
+      "t_start": 3.5,
+      "t_end": 8.5,
+      "action": "The person stands still, posing and looking directly into the camera."
+    },
+    {
+      "t_start": 8.5,
+      "t_end": 11.5,
+      "action": "The person lifts their right leg, knee bent, looks down, and touches their shoe with their right hand."
+    },
+    {
+      "t_start": 11.5,
+      "t_end": 13.5,
+      "action": "While holding the pose, the person looks up at the camera, then lowers their leg."
+    },
+    {
+      "t_start": 13.5,
+      "t_end": 17.5,
+      "action": "The person lifts their left leg, knee bent, leans down, and touches their shoe with their left hand."
+    },
+    {
+      "t_start": 17.5,
+      "t_end": 18.5,
+      "action": "While holding the pose, the person looks up at the camera."
+    },
+    {
+      "t_start": 18.5,
+      "t_end": 20,
+      "action": "The person lowers their leg and poses with their left hand on their hip."
+    }
+  ],
+  "composition_notes": "The shot is a static, continuous take. The camera is stationary and positioned at the subject's eye level. The vertical framing keeps the subject centered, emphasizing the full-body view.",
+  "style": {
+    "lens": "Natural 50mm",
+    "color_treatment": "Natural, with slightly cool and desaturated tones",
+    "lighting_effects": "Even, diffuse studio lighting creating soft, minimal shadows",
+    "special_effects": [
+      "Gentle wind effect on hair"
+    ]
+  },
+  "pose_archetypes": [
+    "Confident",
+    "Poised",
+    "Stylish",
+    "Neutral",
+    "Cool"
+  ],
+  "energy": "Calm studio fashion lookbook",
+  "shot_backgrounds": [
+    "Photo studio with a seamless grey paper backdrop and a concrete floor."
+  ]
+}

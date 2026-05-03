@@ -1,0 +1,47 @@
+{
+  "scene_description": "A person stands against a plain, solid-colored background, smiling and posing playfully for the camera in a studio setting.",
+  "subject": {
+    "rough_pose": "standing",
+    "framing": "full-body",
+    "lighting": "soft frontal lighting"
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 1.5,
+      "action": "Stands facing camera, smiles, then turns body slightly to the left while looking at camera."
+    },
+    {
+      "t_start": 1.5,
+      "t_end": 3,
+      "action": "Turns body back to face forward, continuing to smile."
+    },
+    {
+      "t_start": 3,
+      "t_end": 5.5,
+      "action": "Shifts weight, tilts head up, and playfully kicks left leg forward."
+    },
+    {
+      "t_start": 5.5,
+      "t_end": 7,
+      "action": "Lowers leg and turns body to the left again, smiling at the camera."
+    }
+  ],
+  "composition_notes": "Static camera, full-body shot with the subject centered against a plain, solid-color backdrop. There is ample headroom and space below the feet.",
+  "style": {
+    "lens": "natural 50mm",
+    "color_treatment": "soft pastels with a warm, creamy undertone",
+    "lighting_effects": "flat, soft, diffuse front lighting",
+    "special_effects": []
+  },
+  "pose_archetypes": [
+    "happy",
+    "playful",
+    "casual",
+    "confident"
+  ],
+  "energy": "calm and cheerfully playful",
+  "shot_backgrounds": [
+    "A seamless, solid-color studio backdrop in a light beige or tan color."
+  ]
+}
