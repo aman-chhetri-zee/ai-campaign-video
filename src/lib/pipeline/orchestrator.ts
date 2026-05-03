@@ -219,7 +219,8 @@ export async function runPipeline(
       progress_label: "Stitching final video…",
     });
     const finalPath = join(runDir, "output.mp4");
-    await concatClips(clipPaths, finalPath);
+    const templateVideoPath = resolve("public", template.video_path);
+    await concatClips(clipPaths, finalPath, templateVideoPath);
 
     return updateRun(run_id, {
       status: "succeeded",
