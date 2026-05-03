@@ -24,6 +24,12 @@ CONSTRAINTS:
   video (e.g., "playful", "cool", "cute", "surprised", "stylish", "confident", "dramatic")
 - DO extract overall ENERGY in one short phrase (e.g., "high-energy fast-cut montage",
   "slow cinematic", "playful and punchy")
+- DO extract SHOT BACKGROUNDS — a list of distinct background settings used across the
+  video's shots, in the order they appear (e.g., ["modern interior doorway, bright
+  natural daylight outside, hardwood floor", "outdoor walkway in front of a modern
+  house, late-afternoon sun, manicured lawn"]). One entry per visually distinct
+  background. Aim for 2-6 entries. If the entire video shares ONE background, return
+  a one-element array.
 
 OUTPUT: strict JSON matching the response_schema.
 `.trim();
@@ -90,7 +96,12 @@ export function buildOrchestrationPrompt(
   template: TemplateMetadata,
   products: ProductMetadata[],
   face: FaceMetadata,
-  options?: { look_index?: number; total_looks?: number; framing_scope?: FramingScope },
+  options?: {
+    look_index?: number;
+    total_looks?: number;
+    framing_scope?: FramingScope;
+    background_for_look?: string;
+  },
 ): string {
   const idx = options?.look_index ?? 0;
   const total = options?.total_looks ?? 1;
@@ -100,6 +111,7 @@ export function buildOrchestrationPrompt(
     : ["confident"];
   const poseForThisLook = archetypes[idx % archetypes.length];
   const framingText = framingInstruction(framingScope);
+  const background = options?.background_for_look ?? "clean neutral solid backdrop";
 
   return `
 You are composing prompts for two AI models in a video pipeline.
@@ -132,7 +144,10 @@ Your keyframe_prompt MUST:
 5. For EACH item across all products' items, state explicit placement using its
    attachment_strategy. If framing is "full_body", footwear must be explicitly described
    as visible at the feet.
-6. End with the identity lock:
+6. EXPLICITLY render the background: "${background}". This must be the scene
+   behind the subject. The subject is in this environment, not floating against a
+   blank backdrop.
+7. End with the identity lock:
    "The face must match IMAGE 2 EXACTLY — same eye shape, same skin tone, same hair,
    same distinctive features described in face_analysis (note these specifically:
    ${face.distinctive_features}). Do not generate a different face. Identity preservation

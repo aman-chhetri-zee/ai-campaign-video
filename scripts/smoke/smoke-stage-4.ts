@@ -30,6 +30,7 @@ const TEMPLATE_FIXTURE: TemplateMetadata = {
   },
   pose_archetypes: ["confident", "playful", "stylish"],
   energy: "smooth cinematic walk",
+  shot_backgrounds: ["sunlit cafe interior with warm wood tones"],
 };
 
 const WATCH_FIXTURE: ProductMetadata = {

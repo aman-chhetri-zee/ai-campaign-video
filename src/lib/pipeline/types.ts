@@ -27,6 +27,7 @@ export type TemplateMetadata = {
   style: TemplateStyle;
   pose_archetypes: string[];       // e.g. ["playful", "cool", "cute", "surprised", "stylish"]
   energy: string;                  // e.g. "high-energy fast-cut montage", "slow cinematic", "punchy"
+  shot_backgrounds: string[];      // NEW — short descriptions of DISTINCT backgrounds across the template's shots, in order
 };
 
 // ----- Stage 2 output -----

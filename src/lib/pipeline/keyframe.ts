@@ -97,6 +97,7 @@ function buildTier1Prompt(
   keyframePrompt: string,
   productDescription: string,
   framingScope: FramingScope,
+  backgroundDescription?: string,
 ): string {
   const base = keyframePrompt
     .replace(/IMAGE\s+\d+/gi, "")
@@ -105,11 +106,14 @@ function buildTier1Prompt(
 
   const sanitized = sanitiseProductDescription(productDescription);
   const framing = framingInstruction(framingScope);
+  const bgClause = backgroundDescription
+    ? `Background: ${backgroundDescription}. The subject is set in this scene.`
+    : "Background: clean neutral solid backdrop.";
 
   return (
     `Subject [1] is the specific person from the reference image; render their EXACT face — ` +
     `same eyes, skin tone, hair, distinctive features. Do not generate a different person. ` +
-    `${framing} ` +
+    `${framing} ${bgClause} ` +
     `Subject [2] is the product look (${sanitized}); render every item naturally on Subject [1]. ` +
     `${base} ` +
     `Identity preservation is the highest priority.`
@@ -122,6 +126,7 @@ async function tier1Customization(input: {
   products: ProductWithDescription[];
   faceDescription?: string;
   framingScope?: FramingScope;
+  backgroundDescription?: string;
 }): Promise<{ imageBytes: Buffer; mimeType: string } | null> {
   const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-capability-001:predict`;
 
@@ -129,6 +134,7 @@ async function tier1Customization(input: {
     input.keyframePrompt,
     input.products[0]?.description ?? "product",
     input.framingScope ?? "chest_up",
+    input.backgroundDescription,
   );
   console.log("[keyframe][tier1] prompt:", prompt.slice(0, 300));
 
@@ -370,7 +376,8 @@ export async function compositeKeyframe(input: {
   referenceFace: ImageInput;
   products: ProductWithDescription[];
   faceDescription?: string;            // short description for identity anchoring
-  framingScope?: FramingScope;         // NEW — controls framing instruction in Tier 1
+  framingScope?: FramingScope;         // controls framing instruction in Tier 1
+  backgroundDescription?: string;      // NEW — background scene for Tier 1 prompt
 }): Promise<{ imageBytes: Buffer; mimeType: string }> {
   // Tier 1 — Imagen 3 Customization (subject reference)
   console.log("[keyframe] trying Tier 1 — Imagen 3 Customization (imagen-3.0-capability-001)...");
@@ -380,6 +387,7 @@ export async function compositeKeyframe(input: {
     products: input.products,
     faceDescription: input.faceDescription,
     framingScope: input.framingScope,
+    backgroundDescription: input.backgroundDescription,
   });
   if (tier1Result) {
     console.log(`[keyframe] Tier 1 done — ${tier1Result.imageBytes.length} bytes, ${tier1Result.mimeType}`);

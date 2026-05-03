@@ -38,6 +38,10 @@ async function main() {
   }
   if (!result.energy) throw new Error("missing energy");
 
+  if (!Array.isArray(result.shot_backgrounds) || result.shot_backgrounds.length === 0) {
+    throw new Error("shot_backgrounds empty");
+  }
+
   console.log("[smoke-1] PASS");
 }
 

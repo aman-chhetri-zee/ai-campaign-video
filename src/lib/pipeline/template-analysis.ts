@@ -44,6 +44,7 @@ const TEMPLATE_RESPONSE_SCHEMA = {
     },
     pose_archetypes: { type: "array", items: { type: "string" } },
     energy: { type: "string" },
+    shot_backgrounds: { type: "array", items: { type: "string" } },
   },
   required: [
     "scene_description",
@@ -53,6 +54,7 @@ const TEMPLATE_RESPONSE_SCHEMA = {
     "style",
     "pose_archetypes",
     "energy",
+    "shot_backgrounds",
   ],
 };
 

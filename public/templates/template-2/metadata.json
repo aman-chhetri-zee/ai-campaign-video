@@ -1,57 +1,58 @@
 {
-  "scene_description": "A woman walks through a modern doorway multiple times, each time in a different outfit, achieved through jump cuts. The final scene shows her walking outdoors in front of a modern house, spinning and smiling.",
+  "scene_description": "A quick-cut montage of a woman transitioning between different outfits. The first part shows her walking through a doorway in three different styles. The second part shows her walking confidently outdoors and playfully spinning for the camera.",
   "subject": {
-    "rough_pose": "Standing and walking",
-    "framing": "Medium shot",
-    "lighting": "Bright, even, natural daylight"
+    "rough_pose": "standing, walking, turning",
+    "framing": "medium long shot, medium shot",
+    "lighting": "soft, diffuse natural light"
   },
   "motion_script": [
     {
       "t_start": 0,
-      "t_end": 1.6,
-      "action": "A woman walks forward through an open doorway from inside a house to the outside porch."
+      "t_end": 1.8,
+      "action": "A woman walks forward through an open doorway, looking to her left and then forward."
     },
     {
-      "t_start": 1.6,
-      "t_end": 3.2,
-      "action": "A woman walks forward through the same open doorway."
+      "t_start": 1.8,
+      "t_end": 3.5,
+      "action": "Match cut to the woman continuing the same forward walking motion through the doorway."
     },
     {
-      "t_start": 3.2,
+      "t_start": 3.5,
       "t_end": 5,
-      "action": "A woman walks through the same open doorway, then turns and pushes the door closed as she walks away."
+      "action": "Match cut to the woman completing the walk through the doorway and turning to close the door behind her."
     },
     {
       "t_start": 5,
-      "t_end": 6.2,
-      "action": "The woman walks towards the camera on an outdoor walkway."
+      "t_end": 6.6,
+      "action": "Cut to an outdoor shot. The woman walks towards the camera with a confident expression."
     },
     {
-      "t_start": 6.2,
-      "t_end": 7,
-      "action": "The woman does a quick spin, turning her back to the camera."
+      "t_start": 6.6,
+      "t_end": 7.7,
+      "action": "The woman turns her back to the camera, then spins back around to face the camera, flipping her hair."
     },
     {
-      "t_start": 7,
-      "t_end": 8.9,
-      "action": "The woman spins back to face the camera, smiles, and continues walking forward."
+      "t_start": 7.7,
+      "t_end": 9,
+      "action": "The previous spinning action is repeated, ending with the woman smiling at the camera."
     }
   ],
-  "composition_notes": "The video uses a static shot of a doorway with jump cuts to create a transition effect as the subject repeatedly walks through it. The final sequence uses a tracking shot following the subject as she walks outdoors.",
+  "composition_notes": "The video uses a vertical 9:16 aspect ratio. The first half is a static shot using match cuts on action to create seamless transitions between outfits. The second half features a slight camera follow movement.",
   "style": {
-    "lens": "Natural 50mm",
-    "color_treatment": "Bright and clean with a warm, natural feel",
-    "lighting_effects": "Soft, natural daylight",
-    "special_effects": [
-      "Jump cuts"
-    ]
+    "lens": "natural 50mm",
+    "color_treatment": "bright and clean with natural tones",
+    "lighting_effects": "soft, diffuse daylight",
+    "special_effects": []
   },
   "pose_archetypes": [
     "confident",
-    "poised",
     "stylish",
-    "happy",
-    "casual"
+    "chic",
+    "playful"
   ],
-  "energy": "Upbeat and stylish quick-cut"
+  "energy": "upbeat and confident quick-cut montage",
+  "shot_backgrounds": [
+    "Modern home entryway with a large wooden pivot door, viewed from the exterior porch. The interior has bright lighting and visible potted plants.",
+    "Outdoor walkway with concrete steps in front of a modern house, surrounded by lush green foliage during the day."
+  ]
 }

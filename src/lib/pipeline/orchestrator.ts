@@ -53,7 +53,11 @@ function loadProduct(product_id: string): ProductAsset {
 }
 
 function buildProductDescription(p: ProductAsset): string {
-  return p.metadata.items.map((it) => it.visual_description).join("; ");
+  const filtered = p.metadata.items
+    .filter((it) => it.attachment_strategy !== "placed_on_surface")
+    .map((it) => it.visual_description)
+    .join("; ");
+  return filtered || p.metadata.overall_description;
 }
 
 async function processLook(args: {
@@ -73,6 +77,12 @@ async function processLook(args: {
   const framingScope = inferFramingScope(products.map((p) => p.metadata));
   console.log(`[orchestrator] look ${args.look_index} framing_scope: ${framingScope}`);
 
+  const backgrounds = args.template.metadata.shot_backgrounds && args.template.metadata.shot_backgrounds.length > 0
+    ? args.template.metadata.shot_backgrounds
+    : ["clean neutral solid backdrop"];
+  const backgroundForLook = backgrounds[args.look_index % backgrounds.length];
+  console.log(`[orchestrator] look ${args.look_index} background: ${backgroundForLook.slice(0, 80)}`);
+
   // Stage 4 — orchestrate prompts for THIS look
   updateRun(args.run_id, {
     status: "orchestrating",
@@ -83,7 +93,7 @@ async function processLook(args: {
     template: args.template.metadata,
     products: products.map((p) => p.metadata),
     face: args.face_metadata,
-    options: { look_index: args.look_index, total_looks: args.total_looks, framing_scope: framingScope },
+    options: { look_index: args.look_index, total_looks: args.total_looks, framing_scope: framingScope, background_for_look: backgroundForLook },
   });
 
   // Stage 5 — keyframe
@@ -106,6 +116,7 @@ async function processLook(args: {
     products: productImages,
     faceDescription: args.faceDescription,
     framingScope,
+    backgroundDescription: backgroundForLook,
   });
 
   // Stage 5b — judge with one retry
@@ -135,6 +146,7 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
       products: productImages,
       faceDescription: args.faceDescription,
       framingScope,
+      backgroundDescription: backgroundForLook,
     });
   }
 
