@@ -1,76 +1,96 @@
 {
-  "scene_description": "A fast-paced, high-energy montage of a single person in various urban and studio-like settings. The video consists of numerous quick cuts, utilizing a variety of camera angles, lens effects, and lighting setups.",
+  "scene_description": "A fast-cut montage of a person posing in various urban and abstract studio environments. The scenes switch rapidly between city streets, crosswalks, a dark room, a studio with colored lights, and digitally altered spaces.",
   "subject": {
-    "rough_pose": "The subject alternates between standing, squatting, and sitting poses, often in a dynamic or stylized fashion, directly engaging with the camera.",
-    "framing": "The framing is highly variable, cutting between low-angle full shots, high-angle fisheye shots, medium shots, and extreme close-ups.",
-    "lighting": "Lighting changes with each scene, including harsh direct sunlight, colored studio lighting (blue), and dark, moody, or dramatic lighting."
+    "rough_pose": "The subject is in a variety of dynamic poses, including standing, walking, crouching low to the ground, sitting cross-legged, and sliding down a slide. Many poses are directed towards the camera.",
+    "framing": "The framing is primarily low-angle wide shots and medium close-ups, often distorted by a fisheye lens. There are also selfie-style POV shots and an extreme close-up on the subject's eye.",
+    "lighting": "The lighting is highly variable and stylized, ranging from harsh, direct daylight in outdoor scenes to dramatic, colorful neon and rim lighting in studio settings. Some scenes have flat, even lighting."
   },
   "motion_script": [
     {
       "t_start": 0,
-      "t_end": 0.9,
-      "action": "From a low angle, a person stands on a city street corner and runs one hand over their head."
+      "t_end": 0.8,
+      "action": "A low-angle shot of a person standing on a crosswalk, striking a pose with one hand on their head."
     },
     {
-      "t_start": 0.9,
-      "t_end": 1.8,
-      "action": "From a low angle, a person sitting down pulls a jacket on over their shoulders."
+      "t_start": 0.8,
+      "t_end": 1.6,
+      "action": "From a low-angle POV, a person kneels and quickly puts on a jacket, briefly obscuring the camera."
     },
     {
-      "t_start": 1.8,
-      "t_end": 2.8,
-      "action": "In a dark room, a person in a squatting pose reaches their hand out towards the fisheye lens."
+      "t_start": 1.6,
+      "t_end": 2.5,
+      "action": "In a dark space with a fisheye lens, a person in a low crouch reaches their hand out towards the camera."
     },
     {
-      "t_start": 2.8,
-      "t_end": 3.7,
-      "action": "In an extreme close-up fisheye shot, the person raises their open palm towards the camera."
+      "t_start": 2.5,
+      "t_end": 3.4,
+      "action": "A very close-up fisheye shot of the person holding their open palm up towards the camera, looking directly into the lens."
     },
     {
-      "t_start": 3.7,
-      "t_end": 4.6,
-      "action": "From a high angle fisheye perspective, a person squats and smiles at the camera."
+      "t_start": 3.4,
+      "t_end": 4.4,
+      "action": "A high-angle fisheye selfie shot of the person crouched on the floor under a blue light, smiling at the camera."
     },
     {
-      "t_start": 4.6,
-      "t_end": 5.5,
-      "action": "From a high angle fisheye perspective, a person sits cross-legged and looks directly into the camera."
+      "t_start": 4.4,
+      "t_end": 5.4,
+      "action": "A static fisheye shot of a person sitting cross-legged in a white room, looking at the camera as digital graffiti animates around them."
     },
     {
-      "t_start": 5.5,
-      "t_end": 6.5,
-      "action": "An extreme close-up of a person's eye. The eye is still and looks slightly off-camera."
+      "t_start": 5.4,
+      "t_end": 6.2,
+      "action": "An extreme close-up of a person's eye, which has glitter and colorful makeup. The eye looks around."
     },
     {
-      "t_start": 6.5,
-      "t_end": 8.3,
-      "action": "A medium close-up of a person wearing sunglasses, who looks at the camera and then smiles."
+      "t_start": 6.2,
+      "t_end": 7.5,
+      "action": "A close-up of a person wearing sunglasses in a futuristic, metallic setting, who then smiles."
     },
     {
-      "t_start": 8.3,
-      "t_end": 9.2,
-      "action": "In a fisheye shot, a person leans forward towards the camera and brings a cone-shaped food item to their mouth."
+      "t_start": 7.5,
+      "t_end": 8.5,
+      "action": "A fisheye shot of a person leaning towards the camera to take a bite of an ice cream cone in a colorful alley."
     },
     {
-      "t_start": 9.2,
-      "t_end": 10.1,
-      "action": "From a low angle, a person stands on a city street, looking down at the camera while holding a handbag."
+      "t_start": 8.5,
+      "t_end": 9.4,
+      "action": "A low-angle shot of a person walking towards the camera on a city rooftop, swinging a handbag."
     },
     {
-      "t_start": 10.1,
-      "t_end": 11,
-      "action": "From a low angle with a fisheye lens, a person sits cross-legged and makes hand gestures towards the camera, with a rapid strobe effect."
+      "t_start": 9.4,
+      "t_end": 10.4,
+      "action": "A blurry, distorted fisheye shot of a person sitting cross-legged, making hand gestures towards the camera."
     },
     {
-      "t_start": 11,
-      "t_end": 11.9,
-      "action": "A person sits at the bottom of a slide, puts on sunglasses with both hands, and kicks a leg forward towards the camera."
+      "t_start": 10.4,
+      "t_end": 11.2,
+      "action": "A POV shot of a person coming down a pink slide, putting sunglasses on their head as they move."
     },
     {
-      "t_start": 11.9,
-      "t_end": 13.5,
-      "action": "From a low-angle fisheye view on a city street, a person holds a squatting pose with their arms outstretched to the sides."
+      "t_start": 11.2,
+      "t_end": 13,
+      "action": "A low-angle fisheye shot of a person crouched on a crosswalk, arms spread wide."
     }
   ],
-  "composition_notes": "The video's composition is defined by its rapid-fire editing and dynamic camera work. It heavily features fisheye lens distortion and unconventional angles, particularly low-angle and high-angle shots, to create a sense of energy and perspective shift. The subject is consistently the central focus in every frame."
+  "composition_notes": "The composition is defined by extremely fast cuts, a consistent use of a fisheye or very wide-angle lens, and a prevalence of low-angle shots that make the subject appear powerful and dominant. The subject frequently interacts directly with the camera.",
+  "style": {
+    "lens": "Extreme fisheye distortion",
+    "color_treatment": "High-contrast and hyper-saturated with deep blacks",
+    "lighting_effects": "Varied lighting including harsh daylight, blue neon rim lighting, and soft studio lights",
+    "special_effects": [
+      "RGB chromatic aberration",
+      "flicker transitions",
+      "digital graffiti overlays",
+      "sparkle and glitter particle effects"
+    ]
+  },
+  "pose_archetypes": [
+    "confident",
+    "playful",
+    "cool",
+    "stylish",
+    "energetic",
+    "dramatic"
+  ],
+  "energy": "High-energy fast-cut montage"
 }

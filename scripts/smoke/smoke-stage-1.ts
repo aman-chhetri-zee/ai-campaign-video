@@ -30,6 +30,14 @@ async function main() {
     if (!entry.action) throw new Error("motion_script entry missing action");
   }
 
+  if (!result.style?.lens) throw new Error("missing style.lens");
+  if (!result.style?.color_treatment) throw new Error("missing style.color_treatment");
+  if (!Array.isArray(result.style?.special_effects)) throw new Error("missing style.special_effects");
+  if (!Array.isArray(result.pose_archetypes) || result.pose_archetypes.length === 0) {
+    throw new Error("pose_archetypes empty");
+  }
+  if (!result.energy) throw new Error("missing energy");
+
   console.log("[smoke-1] PASS");
 }
 

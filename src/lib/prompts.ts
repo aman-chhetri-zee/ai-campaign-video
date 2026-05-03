@@ -7,13 +7,21 @@ import type {
 
 export const TEMPLATE_ANALYSIS_PROMPT = `
 You are analyzing a short reference video that will guide AI video generation.
-Extract objective motion and composition information.
+Extract objective motion AND visual style information.
 
 CONSTRAINTS:
 - motion_script must cover the full duration with no time gaps
 - each action must be a single, concrete physical action a video model can replicate
 - DO NOT describe subject identity (face, ethnicity, clothing) — identity will be replaced
 - DO NOT name brands/products visible in the video — products will be inserted fresh
+- DO extract STYLE: lens type (e.g., "fisheye distortion", "natural 50mm"), color treatment
+  (e.g., "neon-saturated with deep blacks", "warm golden hour"), lighting effects
+  (e.g., "neon rim lighting with red and blue accents"), and special effects
+  (e.g., "ghosting trails", "RGB chromatic aberration", "flicker", "lens flare")
+- DO extract POSE ARCHETYPES — short adjectives describing the energetic poses across the
+  video (e.g., "playful", "cool", "cute", "surprised", "stylish", "confident", "dramatic")
+- DO extract overall ENERGY in one short phrase (e.g., "high-energy fast-cut montage",
+  "slow cinematic", "playful and punchy")
 
 OUTPUT: strict JSON matching the response_schema.
 `.trim();
@@ -80,7 +88,15 @@ export function buildOrchestrationPrompt(
   template: TemplateMetadata,
   products: ProductMetadata[],
   face: FaceMetadata,
+  options?: { look_index?: number; total_looks?: number },
 ): string {
+  const idx = options?.look_index ?? 0;
+  const total = options?.total_looks ?? 1;
+  const archetypes = template.pose_archetypes && template.pose_archetypes.length > 0
+    ? template.pose_archetypes
+    : ["confident"];
+  const poseForThisLook = archetypes[idx % archetypes.length];
+
   return `
 You are composing prompts for two AI models in a video pipeline.
 You will receive analysis JSON from earlier stages and must emit three text
@@ -90,38 +106,42 @@ INPUTS:
 - template_analysis: ${JSON.stringify(template, null, 2)}
 - product_analyses: ${JSON.stringify(products, null, 2)}
 - face_analysis: ${JSON.stringify(face, null, 2)}
+- look_position: ${idx + 1} of ${total}
+- assigned_pose_archetype_for_this_look: "${poseForThisLook}"
 
 ----------------------------------------------------------------------
-keyframe_prompt — for Nano Banana Pro (multi-image input).
-
-The image inputs to Nano Banana Pro will be supplied in this order:
-  IMAGE 1 = template's first frame
-  IMAGE 2 = reference face
-  IMAGE 3, IMAGE 4 = product images (in selection order)
+keyframe_prompt — for Imagen 3 Customization (multi-image input).
+Image inputs supplied in this order:
+  IMAGE 1 = template's first frame (style reference, optional anchor)
+  IMAGE 2 = reference face (identity source)
+  IMAGE 3+ = product images (product subject references)
 
 Your keyframe_prompt MUST:
-1. Open with: "Compose a single still image that recreates the scene
-   and pose shown in IMAGE 1, but featuring the person from IMAGE 2
-   (preserving their face exactly), naturally wearing/holding the
-   products from IMAGE 3 onward."
-2. For EACH item across all products, state explicit placement using its attachment_strategy from the items array.
-   Example: "The wristwatch from IMAGE 3 is worn on the LEFT wrist,
-   clearly visible on the inside of the arm."
-3. Carry the template's lighting, framing, and composition_notes verbatim.
-4. End with the identity lock:
-   "The face must match IMAGE 2 EXACTLY — same eye shape, same skin tone,
-   same hair, same distinctive features. Do not generate a different face.
-   Do not stylize the face. Identity preservation is the highest priority."
+1. Open with: "Compose a single still image that recreates the scene/style from
+   IMAGE 1 but featuring the person from IMAGE 2 (preserving their face exactly),
+   naturally wearing/holding the products from IMAGE 3 onward."
+2. EXPLICITLY adopt the template's style — quote it: "${template.style?.lens ?? "natural"}; ${template.style?.color_treatment ?? "natural color"}; ${template.style?.lighting_effects ?? "natural lighting"}; ${(template.style?.special_effects ?? []).join(", ")}".
+3. EXPLICITLY adopt the assigned pose archetype: "${poseForThisLook} pose, leaning toward
+   the camera with intent, head-and-shoulders to chest-up framing".
+4. For EACH item across all products' items, state explicit placement using its
+   attachment_strategy.
+5. End with the identity lock:
+   "The face must match IMAGE 2 EXACTLY — same eye shape, same skin tone, same hair,
+   same distinctive features described in face_analysis (note these specifically:
+   ${face.distinctive_features}). Do not generate a different face. Identity preservation
+   is the highest priority."
 
 ----------------------------------------------------------------------
 motion_prompt — for Kling image-to-video.
-
 Kling animates from the keyframe; it does NOT re-render identity or products.
-Repeating identity description here causes face drift.
 
 Your motion_prompt MUST:
-1. Translate the motion_script into one tight paragraph of action.
-2. Include camera movement from template_analysis.composition_notes.
+1. Describe motion appropriate for a "${poseForThisLook}" archetype — leaning toward
+   the camera, expression shift to match the archetype mood (e.g., playful = quick
+   smile + small head bob; cool = subtle smolder + slow turn; cute = bashful smile +
+   tilt; surprised = eyebrow raise + small recoil; stylish = chin lift + half-turn).
+2. Include camera energy from template_analysis.energy and template.style.lens
+   (e.g., fisheye → mention slight lens push-in).
 3. NOT describe the subject's face, body, or the products.
 4. Stay under 60 words.
 
@@ -131,13 +151,10 @@ negative_prompt — shared across both calls.
 ALWAYS include:
   "blurry face, distorted hands, deformed limbs, extra fingers,
    missing products, floating objects, face morphing, identity drift,
-   warped product, duplicate limbs"
+   warped product, duplicate limbs, generic stock-photo face,
+   different person, model swap"
 
-PLUS, per product type, append targeted negatives:
-  wristwatch  → "watch on wrong wrist, missing watch, watch face warped"
-  handbag     → "bag floating, bag detached from hand, distorted strap"
-  sunglasses  → "missing glasses, glasses on forehead"
-  (extend as the catalog grows)
+PLUS, per product item type, append targeted negatives based on the items.
 
 OUTPUT: strict JSON with three string fields:
 { "keyframe_prompt": string, "motion_prompt": string, "negative_prompt": string }

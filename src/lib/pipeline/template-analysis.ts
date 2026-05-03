@@ -32,8 +32,28 @@ const TEMPLATE_RESPONSE_SCHEMA = {
       },
     },
     composition_notes: { type: "string" },
+    style: {
+      type: "object",
+      properties: {
+        lens: { type: "string" },
+        color_treatment: { type: "string" },
+        lighting_effects: { type: "string" },
+        special_effects: { type: "array", items: { type: "string" } },
+      },
+      required: ["lens", "color_treatment", "lighting_effects", "special_effects"],
+    },
+    pose_archetypes: { type: "array", items: { type: "string" } },
+    energy: { type: "string" },
   },
-  required: ["scene_description", "subject", "motion_script", "composition_notes"],
+  required: [
+    "scene_description",
+    "subject",
+    "motion_script",
+    "composition_notes",
+    "style",
+    "pose_archetypes",
+    "energy",
+  ],
 };
 
 export async function analyzeTemplateVideo(input: {

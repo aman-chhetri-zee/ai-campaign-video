@@ -10,6 +10,7 @@ import {
   Plus,
   Sparkles,
   Upload,
+  Download,
 } from "lucide-react";
 import { type CatalogProduct } from "@/components/ProductPicker";
 
@@ -708,7 +709,7 @@ export default function VideoPocPage() {
 
             {/* Final video */}
             {run.video_url && (
-              <div className="flex justify-center">
+              <div className="flex flex-col items-center gap-3">
                 <video
                   src={run.video_url}
                   controls
@@ -716,6 +717,14 @@ export default function VideoPocPage() {
                   loop
                   className="max-w-md w-full rounded-2xl shadow-2xl shadow-black/60 border border-zinc-800"
                 />
+                <a
+                  href={run.video_url}
+                  download={`video-poc-${run.run_id}.mp4`}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition"
+                >
+                  <Download className="w-4 h-4" />
+                  Download video
+                </a>
               </div>
             )}
 

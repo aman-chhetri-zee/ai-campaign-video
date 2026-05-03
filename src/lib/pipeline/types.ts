@@ -7,6 +7,13 @@ export type MotionScriptEntry = {
   action: string;
 };
 
+export type TemplateStyle = {
+  lens: string;                    // e.g. "fisheye distortion (extreme wide)", "natural 50mm", "wide-angle"
+  color_treatment: string;         // e.g. "neon-saturated with deep blacks", "warm golden hour", "moody desaturated"
+  lighting_effects: string;        // e.g. "neon rim lighting with red/blue accents", "soft natural", "studio key+fill"
+  special_effects: string[];       // e.g. ["ghosting trails", "RGB chromatic aberration", "flicker", "lens flare"]
+};
+
 export type TemplateMetadata = {
   scene_description: string;
   subject: {
@@ -16,6 +23,10 @@ export type TemplateMetadata = {
   };
   motion_script: MotionScriptEntry[];
   composition_notes: string;
+  // NEW
+  style: TemplateStyle;
+  pose_archetypes: string[];       // e.g. ["playful", "cool", "cute", "surprised", "stylish"]
+  energy: string;                  // e.g. "high-energy fast-cut montage", "slow cinematic", "punchy"
 };
 
 // ----- Stage 2 output -----

@@ -56,6 +56,7 @@ async function processLook(args: {
   template: TemplateAsset;
   templateFirstFrame: Buffer;
   face_metadata: Awaited<ReturnType<typeof analyzeReferenceFace>>;
+  faceDescription: string;
   referenceFaceBytes: Buffer;
   referenceFaceMimeType: string;
   look: Look;
@@ -73,6 +74,7 @@ async function processLook(args: {
     template: args.template.metadata,
     products: products.map((p) => p.metadata),
     face: args.face_metadata,
+    options: { look_index: args.look_index, total_looks: args.total_looks },
   });
 
   // Stage 5 — keyframe
@@ -93,6 +95,7 @@ async function processLook(args: {
     templateFirstFrame: { bytes: args.templateFirstFrame, mimeType: "image/png" },
     referenceFace: { bytes: args.referenceFaceBytes, mimeType: args.referenceFaceMimeType },
     products: productImages,
+    faceDescription: args.faceDescription,
   });
 
   // Stage 5b — judge with one retry
@@ -120,6 +123,7 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
       templateFirstFrame: { bytes: args.templateFirstFrame, mimeType: "image/png" },
       referenceFace: { bytes: args.referenceFaceBytes, mimeType: args.referenceFaceMimeType },
       products: productImages,
+      faceDescription: args.faceDescription,
     });
   }
 
@@ -170,6 +174,15 @@ export async function runPipeline(
       mimeType: input.referenceFaceMimeType,
     });
 
+    const faceDescription = [
+      face.perceived_gender,
+      face.age_range,
+      face.skin_tone + " skin",
+      face.hair,
+      face.distinctive_features,
+      face.ethnicity_cues,
+    ].filter(Boolean).join(", ");
+
     const templateFirstFrame = readFileSync(resolve("public", template.first_frame_path));
 
     // Per-look loop
@@ -185,6 +198,7 @@ export async function runPipeline(
         template,
         templateFirstFrame,
         face_metadata: face,
+        faceDescription,
         referenceFaceBytes: input.referenceFaceBytes,
         referenceFaceMimeType: input.referenceFaceMimeType,
         look: run.looks[i],

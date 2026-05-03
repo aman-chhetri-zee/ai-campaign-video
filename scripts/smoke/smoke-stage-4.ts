@@ -22,6 +22,14 @@ const TEMPLATE_FIXTURE: TemplateMetadata = {
     { t_start: 3.0, t_end: 5.0, action: "settles into closeup" },
   ],
   composition_notes: "shallow depth of field, warm color grade, vertical 9:16",
+  style: {
+    lens: "natural 50mm",
+    color_treatment: "warm golden hour",
+    lighting_effects: "soft natural rim",
+    special_effects: [],
+  },
+  pose_archetypes: ["confident", "playful", "stylish"],
+  energy: "smooth cinematic walk",
 };
 
 const WATCH_FIXTURE: ProductMetadata = {
@@ -67,6 +75,7 @@ async function main() {
     template: TEMPLATE_FIXTURE,
     products: [WATCH_FIXTURE, BAG_FIXTURE],
     face: FACE_FIXTURE,
+    options: { look_index: 0, total_looks: 2 },
   });
 
   console.log("[smoke-4] result:", JSON.stringify(result, null, 2));

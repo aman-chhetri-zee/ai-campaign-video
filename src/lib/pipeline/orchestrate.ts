@@ -25,9 +25,10 @@ export async function orchestratePrompts(input: {
   template: TemplateMetadata;
   products: ProductMetadata[];
   face: FaceMetadata;
+  options?: { look_index?: number; total_looks?: number };
 }): Promise<OrchestratedPrompts> {
   const ai = getGenAIClient();
-  const prompt = buildOrchestrationPrompt(input.template, input.products, input.face);
+  const prompt = buildOrchestrationPrompt(input.template, input.products, input.face, input.options);
 
   const response = await Promise.race([
     ai.models.generateContent({

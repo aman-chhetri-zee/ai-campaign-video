@@ -92,15 +92,17 @@ function sanitiseProductDescription(d: string): string {
  * We synthesize it programmatically — no extra Gemini call needed.
  * [1] = reference face person, [2] = product image.
  */
-function buildTier1Prompt(keyframePrompt: string, productDescription: string): string {
+function buildTier1Prompt(keyframePrompt: string, productDescription: string, faceDesc: string): string {
   const base = keyframePrompt
     .replace(/IMAGE\s+\d+/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 
   return (
-    `Subject [1] is the featured person — full head-and-shoulders to chest-up portrait, ` +
-    `face fully visible in frame, NOT cropped above the chin. ` +
+    `Subject [1] is the specific person from the reference image (${faceDesc}); ` +
+    `render their EXACT face — same eyes, same skin tone, same hair, same distinctive features. ` +
+    `Do not generate a different person. ` +
+    `Full head-and-shoulders to chest-up portrait, face fully visible in frame, NOT cropped above the chin. ` +
     `Subject [2] is the product look (${productDescription}); render every item naturally on Subject [1]. ` +
     `${base} ` +
     `The face from Subject [1] must be fully present, identity preserved exactly — same eyes, skin tone, hair, distinctive features. ` +
@@ -112,10 +114,12 @@ async function tier1Customization(input: {
   keyframePrompt: string;
   referenceFace: ImageInput;
   products: ProductWithDescription[];
+  faceDescription?: string;
 }): Promise<{ imageBytes: Buffer; mimeType: string } | null> {
   const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-capability-001:predict`;
 
-  const prompt = buildTier1Prompt(input.keyframePrompt, sanitiseProductDescription(input.products[0]?.description ?? "product"));
+  const faceDesc = input.faceDescription?.trim() || "person from the reference image";
+  const prompt = buildTier1Prompt(input.keyframePrompt, sanitiseProductDescription(input.products[0]?.description ?? "product"), faceDesc);
   console.log("[keyframe][tier1] prompt:", prompt.slice(0, 300));
 
   const faceB64 = input.referenceFace.bytes.toString("base64");
@@ -130,7 +134,7 @@ async function tier1Customization(input: {
       referenceId: 1,
       referenceImage: { bytesBase64Encoded: faceB64 },
       subjectImageConfig: {
-        subjectDescription: "young south asian woman",
+        subjectDescription: faceDesc,
         subjectType: "SUBJECT_TYPE_PERSON",
       },
     },
@@ -354,6 +358,7 @@ export async function compositeKeyframe(input: {
   templateFirstFrame: ImageInput;
   referenceFace: ImageInput;
   products: ProductWithDescription[];
+  faceDescription?: string;            // NEW — short description for identity anchoring
 }): Promise<{ imageBytes: Buffer; mimeType: string }> {
   // Tier 1 — Imagen 3 Customization (subject reference)
   console.log("[keyframe] trying Tier 1 — Imagen 3 Customization (imagen-3.0-capability-001)...");
@@ -361,6 +366,7 @@ export async function compositeKeyframe(input: {
     keyframePrompt: input.keyframePrompt,
     referenceFace: input.referenceFace,
     products: input.products,
+    faceDescription: input.faceDescription,
   });
   if (tier1Result) {
     console.log(`[keyframe] Tier 1 done — ${tier1Result.imageBytes.length} bytes, ${tier1Result.mimeType}`);
