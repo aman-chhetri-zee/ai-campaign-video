@@ -138,6 +138,14 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
     current_look_index: args.look_index,
   });
 
+  const archetypes =
+    args.template.metadata.pose_archetypes &&
+    args.template.metadata.pose_archetypes.length > 0
+      ? args.template.metadata.pose_archetypes
+      : ["confident"];
+  const poseArchetype = archetypes[args.look_index % archetypes.length];
+  const motionReferenceVideoPath = resolve("public", args.template.video_path);
+
   const video = await generateVideoFromKeyframe({
     keyframeBytes: keyframe.imageBytes,
     keyframeMimeType: keyframe.mimeType,
@@ -145,6 +153,8 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
     negativePrompt: prompts.negative_prompt,
     durationSeconds: 5,
     aspectRatio: "9:16",
+    poseArchetype,                 // drives camera_control (Path 1)
+    motionReferenceVideoPath,      // reference video for Motion Control (Path 2)
   });
 
   const clipPath = join(args.runDir, `clip-${args.look_index}.mp4`);
