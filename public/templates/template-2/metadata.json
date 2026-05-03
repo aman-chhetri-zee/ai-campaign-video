@@ -1,0 +1,57 @@
+{
+  "scene_description": "A woman walks through a modern doorway multiple times, each time in a different outfit, achieved through jump cuts. The final scene shows her walking outdoors in front of a modern house, spinning and smiling.",
+  "subject": {
+    "rough_pose": "Standing and walking",
+    "framing": "Medium shot",
+    "lighting": "Bright, even, natural daylight"
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 1.6,
+      "action": "A woman walks forward through an open doorway from inside a house to the outside porch."
+    },
+    {
+      "t_start": 1.6,
+      "t_end": 3.2,
+      "action": "A woman walks forward through the same open doorway."
+    },
+    {
+      "t_start": 3.2,
+      "t_end": 5,
+      "action": "A woman walks through the same open doorway, then turns and pushes the door closed as she walks away."
+    },
+    {
+      "t_start": 5,
+      "t_end": 6.2,
+      "action": "The woman walks towards the camera on an outdoor walkway."
+    },
+    {
+      "t_start": 6.2,
+      "t_end": 7,
+      "action": "The woman does a quick spin, turning her back to the camera."
+    },
+    {
+      "t_start": 7,
+      "t_end": 8.9,
+      "action": "The woman spins back to face the camera, smiles, and continues walking forward."
+    }
+  ],
+  "composition_notes": "The video uses a static shot of a doorway with jump cuts to create a transition effect as the subject repeatedly walks through it. The final sequence uses a tracking shot following the subject as she walks outdoors.",
+  "style": {
+    "lens": "Natural 50mm",
+    "color_treatment": "Bright and clean with a warm, natural feel",
+    "lighting_effects": "Soft, natural daylight",
+    "special_effects": [
+      "Jump cuts"
+    ]
+  },
+  "pose_archetypes": [
+    "confident",
+    "poised",
+    "stylish",
+    "happy",
+    "casual"
+  ],
+  "energy": "Upbeat and stylish quick-cut"
+}
