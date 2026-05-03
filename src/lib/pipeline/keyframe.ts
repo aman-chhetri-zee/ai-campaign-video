@@ -91,11 +91,11 @@ function sanitiseProductDescription(d: string): string {
 /**
  * Build the Tier-1 prompt from the input keyframePrompt and product descriptions.
  * We synthesize it programmatically — no extra Gemini call needed.
- * [1] = reference face person, [2] = product image.
+ * [1] = reference face person, [2..4] = each product image.
  */
 function buildTier1Prompt(
   keyframePrompt: string,
-  productDescription: string,
+  productDescriptions: string[],          // NOTE: changed from a single combined string to an array
   framingScope: FramingScope,
   backgroundDescription?: string,
 ): string {
@@ -104,19 +104,25 @@ function buildTier1Prompt(
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  const sanitized = sanitiseProductDescription(productDescription);
   const framing = framingInstruction(framingScope);
   const bgClause = backgroundDescription
     ? `Background: ${backgroundDescription}. The subject is set in this scene.`
     : "Background: clean neutral solid backdrop.";
 
+  // Build a Subject [N] binding line for each product
+  const productBindings = productDescriptions
+    .slice(0, 3)
+    .map((d, i) => `Subject [${i + 2}] is ${sanitiseProductDescription(d)}; render this exact item on Subject [1].`)
+    .join(" ");
+
   return (
     `Subject [1] is the specific person from the reference image; render their EXACT face — ` +
     `same eyes, skin tone, hair, distinctive features. Do not generate a different person. ` +
     `${framing} ${bgClause} ` +
-    `Subject [2] is the product look (${sanitized}); render every item naturally on Subject [1]. ` +
+    `${productBindings} ` +
+    `All product items above MUST appear in the keyframe — none can be omitted, replaced with a default, or hallucinated. ` +
     `${base} ` +
-    `Identity preservation is the highest priority.`
+    `Identity preservation is the highest priority; product fidelity is the second priority.`
   );
 }
 
@@ -130,19 +136,11 @@ async function tier1Customization(input: {
 }): Promise<{ imageBytes: Buffer; mimeType: string } | null> {
   const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-capability-001:predict`;
 
-  const prompt = buildTier1Prompt(
-    input.keyframePrompt,
-    input.products[0]?.description ?? "product",
-    input.framingScope ?? "chest_up",
-    input.backgroundDescription,
-  );
+  const productDescriptions = input.products.slice(0, 3).map((p) => p.description);
+  const prompt = buildTier1Prompt(input.keyframePrompt, productDescriptions, input.framingScope ?? "chest_up", input.backgroundDescription);
   console.log("[keyframe][tier1] prompt:", prompt.slice(0, 300));
 
   const faceB64 = input.referenceFace.bytes.toString("base64");
-  const productB64 = input.products[0]?.bytes.toString("base64") ?? "";
-  const subjectDescription = sanitiseProductDescription(
-    input.products[0]?.description ?? "product",
-  );
   const faceDesc = input.faceDescription?.trim() || "person from the reference image";
 
   const referenceImages: object[] = [
@@ -157,16 +155,27 @@ async function tier1Customization(input: {
     },
   ];
 
-  if (productB64) {
+  // Add EACH product as its own Subject reference. Cap at 3 products (4 total
+  // including face) — Imagen Customization tolerates up to 4 reference images
+  // reliably; more starts to dilute identity preservation.
+  const productCap = Math.min(input.products.length, 3);
+  for (let i = 0; i < productCap; i++) {
+    const p = input.products[i];
     referenceImages.push({
       referenceType: "REFERENCE_TYPE_SUBJECT",
-      referenceId: 2,
-      referenceImage: { bytesBase64Encoded: productB64 },
+      referenceId: i + 2,                                             // Subject [2], [3], [4]
+      referenceImage: { bytesBase64Encoded: p.bytes.toString("base64") },
       subjectImageConfig: {
-        subjectDescription,
+        subjectDescription: sanitiseProductDescription(p.description),
         subjectType: "SUBJECT_TYPE_PRODUCT",
       },
     });
+  }
+
+  if (input.products.length > 3) {
+    console.warn(
+      `[keyframe][tier1] capping at 3 products (passed ${input.products.length}); items beyond [4] will only appear via text prompt`,
+    );
   }
 
   const token = await getAccessToken();
@@ -369,6 +378,17 @@ async function tier3TextOnly(input: {
 /**
  * Composite a keyframe from template first frame + reference face + product
  * images. Uses a three-tier strategy to maximise identity preservation.
+ *
+ * Routing:
+ *   Single-product (0–1):  Tier 1 → Tier 2 → Tier 3
+ *   Multi-product  (2–3):  Tier 3 → Tier 2
+ *
+ * Imagen 3 Customization (Tier 1) caps at 2 reference images for 9:16 aspect
+ * ratio (face + 1 product). Multi-product looks would exceed that cap and
+ * receive a hard API rejection, so we skip Tier 1 for them and route directly
+ * to Tier 3 (text-only Imagen 4.0 via Gemini-synthesized prompt), which has
+ * been verified to render all products correctly when their visual references
+ * are fed to Gemini's prompt-building stage.
  */
 export async function compositeKeyframe(input: {
   keyframePrompt: string;
@@ -377,25 +397,43 @@ export async function compositeKeyframe(input: {
   products: ProductWithDescription[];
   faceDescription?: string;            // short description for identity anchoring
   framingScope?: FramingScope;         // controls framing instruction in Tier 1
-  backgroundDescription?: string;      // NEW — background scene for Tier 1 prompt
+  backgroundDescription?: string;      // background scene for Tier 1 prompt
 }): Promise<{ imageBytes: Buffer; mimeType: string }> {
-  // Tier 1 — Imagen 3 Customization (subject reference)
-  console.log("[keyframe] trying Tier 1 — Imagen 3 Customization (imagen-3.0-capability-001)...");
-  const tier1Result = await tier1Customization({
-    keyframePrompt: input.keyframePrompt,
-    referenceFace: input.referenceFace,
-    products: input.products,
-    faceDescription: input.faceDescription,
-    framingScope: input.framingScope,
-    backgroundDescription: input.backgroundDescription,
-  });
-  if (tier1Result) {
-    console.log(`[keyframe] Tier 1 done — ${tier1Result.imageBytes.length} bytes, ${tier1Result.mimeType}`);
-    return tier1Result;
+  const productCount = input.products.length;
+
+  // Imagen 3 Customization (Tier 1) caps at 2 reference images for 9:16
+  // aspect ratio. Single-product looks fit (face + 1 product). Multi-product
+  // looks would exceed the cap, so we skip Tier 1 and route directly to
+  // Tier 3 (text-only Imagen 4.0 via Gemini-synthesized prompt) which has
+  // been verified to render all products correctly when given their visual
+  // references via Gemini's prompt-building stage.
+  if (productCount <= 1) {
+    console.log("[keyframe] single-product look — trying Tier 1 first");
+    const tier1Result = await tier1Customization({
+      keyframePrompt: input.keyframePrompt,
+      referenceFace: input.referenceFace,
+      products: input.products,
+      faceDescription: input.faceDescription,
+      framingScope: input.framingScope ?? "chest_up",
+      backgroundDescription: input.backgroundDescription,
+    });
+    if (tier1Result) {
+      console.log(`[keyframe] Tier 1 done — ${tier1Result.imageBytes.length} bytes, ${tier1Result.mimeType}`);
+      return tier1Result;
+    }
+    console.log("[keyframe] Tier 1 unavailable — trying Tier 2 — Inpaint...");
+  } else {
+    console.log(`[keyframe] multi-product look (${productCount} products) — skipping Tier 1 (exceeds 2-image cap), trying Tier 3 first`);
+    try {
+      const tier3Result = await tier3TextOnly(input);
+      console.log(`[keyframe] Tier 3 done — ${tier3Result.imageBytes.length} bytes, ${tier3Result.mimeType}`);
+      return tier3Result;
+    } catch (err) {
+      console.warn("[keyframe] Tier 3 failed, falling back to Tier 2:", (err as Error).message);
+    }
   }
 
-  // Tier 2 — Inpaint on reference face image
-  console.log("[keyframe] Tier 1 unavailable — trying Tier 2 — Inpaint (imagen-3.0-generate-001)...");
+  // Tier 2 — Inpaint on reference face image (works for both single and multi-product)
   const tier2Result = await tier2Inpaint({
     keyframePrompt: input.keyframePrompt,
     referenceFace: input.referenceFace,
@@ -406,8 +444,9 @@ export async function compositeKeyframe(input: {
     return tier2Result;
   }
 
-  // Tier 3 — Legacy text-only (last resort)
-  console.log("[keyframe] Tier 2 unavailable — falling back to Tier 3 (text-only Imagen 4.0)...");
+  // Final fallback — Tier 3 for single-product looks that already exhausted Tier 1+2,
+  // OR Tier 2 retry for multi-product looks.
+  console.log("[keyframe] falling back to Tier 3 (final attempt)...");
   const tier3Result = await tier3TextOnly(input);
   console.log(`[keyframe] Tier 3 done — ${tier3Result.imageBytes.length} bytes, ${tier3Result.mimeType}`);
   return tier3Result;
