@@ -172,11 +172,17 @@ export async function generateMultiShotViaSeedance(input: {
 
   // Build content array — text prompt first, then identity keyframe, then
   // optional outfit images, then the reference video for multi-shot structure.
+  // Seedance has two mutually-exclusive content modes:
+  //   - "first_frame" mode (image-to-video, no reference video allowed)
+  //   - "reference_image" / "reference_video" mode (Creative Templates — multi-shot with motion reference)
+  // We're using mode 2 because that's what enables multi-shot template-driven output.
+  // ALL keyframes (primary + outfits) get role "reference_image"; the template gets role "reference_video".
   const content: any[] = [
     { type: "text", text: input.motionPrompt },
     {
       type: "image_url",
       image_url: { url: input.keyframeUrl },
+      role: "reference_image", // primary identity/composition anchor
     },
   ];
 
