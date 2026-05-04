@@ -7,15 +7,19 @@ import { runPipeline } from "../src/lib/pipeline/orchestrator";
 import { createRun } from "../src/lib/pipeline/run-store";
 
 async function main() {
-  const facePath = resolve(
-    "test-fixtures/runs/template-1__product-1__face-A/reference_face.png",
-  );
+  // AI-generated model (avoids Seedance's privacy filter on real-person photos)
+  const facePath = resolve("public/creators/ai-model.jpg");
+  const faceMimeType = facePath.toLowerCase().endsWith(".jpg") || facePath.toLowerCase().endsWith(".jpeg")
+    ? "image/jpeg"
+    : "image/png";
 
   const run = createRun({
-    template_id: "template-3",
+    template_id: "template-1",   // AI-generated reference (user noted — may bypass Seedance privacy filter)
     looks: [
-      // Single look — product-1 (maroon top + necklace + jeans as one outfit)
+      { product_ids: ["black-top", "skirt", "black-boots"] },
+      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers"] },
       { product_ids: ["product-1"] },
+      { product_ids: ["purse", "black-top", "skirt"] },
     ],
     reference_face_path: facePath,
   });
@@ -31,7 +35,7 @@ async function main() {
 
   const final = await runPipeline(run.run_id, {
     referenceFaceBytes: readFileSync(facePath),
-    referenceFaceMimeType: "image/png",
+    referenceFaceMimeType: faceMimeType,
   });
 
   console.log("=== probe: final state ===");
