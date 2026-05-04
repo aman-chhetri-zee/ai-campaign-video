@@ -9,6 +9,7 @@ import { judgeKeyframe } from "./judge";
 import { generateVideoFromKeyframe } from "./kling";
 import { generateMultiShotViaSeedance } from "./seedance";
 import { concatClips } from "./concat";
+import { generateMasterSubjectReference } from "./master-subject";
 import { updateRun, getRun } from "./run-store";
 import { uploadToBlob } from "./upload";
 import type {
@@ -269,6 +270,33 @@ export async function runPipeline(
     const templateFirstFrame = readFileSync(resolve("public", template.first_frame_path));
 
     // -----------------------------------------------------------------------
+    // Master subject reference — generate once, use as identity anchor for
+    // every per-look keyframe to eliminate cross-shot identity drift.
+    // -----------------------------------------------------------------------
+    updateRun(run_id, {
+      status: "analyzing_face",
+      progress_label: "Generating master subject reference for identity consistency…",
+    });
+    console.log("[orchestrator] generating master subject reference for identity anchor...");
+    const master = await generateMasterSubjectReference({
+      faceImageBytes: input.referenceFaceBytes,
+      faceImageMimeType: input.referenceFaceMimeType,
+      faceMetadata: face,
+    });
+
+    let anchorFaceBytes = input.referenceFaceBytes;
+    let anchorFaceMimeType = input.referenceFaceMimeType;
+    if (master) {
+      const masterPath = join(runDir, "master-subject.png");
+      writeFileSync(masterPath, master.imageBytes);
+      anchorFaceBytes = master.imageBytes;
+      anchorFaceMimeType = master.mimeType;
+      console.log(`[orchestrator] master subject saved (${master.imageBytes.length} bytes) — using as identity anchor for all looks`);
+    } else {
+      console.warn("[orchestrator] master subject generation failed — falling back to original reference photo");
+    }
+
+    // -----------------------------------------------------------------------
     // SEEDANCE PATH — single multi-shot call for all looks
     // -----------------------------------------------------------------------
     if (USE_SEEDANCE()) {
@@ -334,7 +362,7 @@ export async function runPipeline(
         let keyframe = await compositeKeyframe({
           keyframePrompt: prompts.keyframe_prompt,
           templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
-          referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
+          referenceFace: { bytes: anchorFaceBytes, mimeType: anchorFaceMimeType },
           products: productImages,
           faceDescription,
           framingScope,
@@ -344,7 +372,7 @@ export async function runPipeline(
         // Judge with one retry
         const judgement = await judgeKeyframe({
           keyframe: { bytes: keyframe.imageBytes, mimeType: keyframe.mimeType },
-          referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
+          referenceFace: { bytes: anchorFaceBytes, mimeType: anchorFaceMimeType },
           products: productImages.map((p) => ({ bytes: p.bytes, mimeType: p.mimeType })),
         });
 
@@ -361,7 +389,7 @@ export async function runPipeline(
           keyframe = await compositeKeyframe({
             keyframePrompt: retryPrompt,
             templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
-            referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
+            referenceFace: { bytes: anchorFaceBytes, mimeType: anchorFaceMimeType },
             products: productImages,
             faceDescription,
             framingScope,
@@ -448,8 +476,8 @@ export async function runPipeline(
         templateFirstFrame,
         face_metadata: face,
         faceDescription,
-        referenceFaceBytes: input.referenceFaceBytes,
-        referenceFaceMimeType: input.referenceFaceMimeType,
+        referenceFaceBytes: anchorFaceBytes,        // CHANGED — was input.referenceFaceBytes
+        referenceFaceMimeType: anchorFaceMimeType,  // CHANGED — was input.referenceFaceMimeType
         look: run.looks[i],
         runDir,
       });
