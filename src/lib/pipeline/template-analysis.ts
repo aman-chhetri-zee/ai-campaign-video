@@ -2,6 +2,7 @@
 import { getGenAIClient } from "../genai-client";
 import { TEMPLATE_ANALYSIS_PROMPT } from "../prompts";
 import type { TemplateMetadata } from "./types";
+import { withRetry } from "./retry";
 
 const MODEL = "gemini-2.5-pro";
 const TIMEOUT_MS = 120_000; // video analysis is slower than image; bumped from 60s based on Stage 3 experience
@@ -65,27 +66,31 @@ export async function analyzeTemplateVideo(input: {
   const ai = getGenAIClient();
   const base64 = input.videoBytes.toString("base64");
 
-  const response = await Promise.race([
-    ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: TEMPLATE_ANALYSIS_PROMPT },
-            { inlineData: { mimeType: input.mimeType, data: base64 } },
+  const response = await withRetry(
+    () =>
+      Promise.race([
+        ai.models.generateContent({
+          model: MODEL,
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: TEMPLATE_ANALYSIS_PROMPT },
+                { inlineData: { mimeType: input.mimeType, data: base64 } },
+              ],
+            },
           ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: TEMPLATE_RESPONSE_SCHEMA,
-      },
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("template-analysis timeout")), TIMEOUT_MS),
-    ),
-  ]);
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: TEMPLATE_RESPONSE_SCHEMA,
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("template-analysis timeout")), TIMEOUT_MS),
+        ),
+      ]),
+    { label: "stage1-template-analysis" },
+  );
 
   const text = (response as any).text;
   if (!text) throw new Error("template-analysis: empty response");

@@ -3,6 +3,7 @@ import { getGenAIClient } from "../genai-client";
 import { JUDGE_PROMPT } from "../prompts";
 import type { JudgeReport } from "./types";
 import type { ImageInput } from "./keyframe";
+import { withRetry } from "./retry";
 
 const MODEL = "gemini-2.5-pro";
 const TIMEOUT_MS = 60_000;
@@ -38,19 +39,23 @@ export async function judgeKeyframe(input: {
     })),
   ];
 
-  const response = await Promise.race([
-    ai.models.generateContent({
-      model: MODEL,
-      contents: [{ role: "user", parts }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: JUDGE_SCHEMA,
-      },
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("judge timeout")), TIMEOUT_MS),
-    ),
-  ]);
+  const response = await withRetry(
+    () =>
+      Promise.race([
+        ai.models.generateContent({
+          model: MODEL,
+          contents: [{ role: "user", parts }],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: JUDGE_SCHEMA,
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("judge timeout")), TIMEOUT_MS),
+        ),
+      ]),
+    { label: "stage5b-judge" },
+  );
 
   const text = (response as any).text;
   if (!text) throw new Error("judge: empty response");

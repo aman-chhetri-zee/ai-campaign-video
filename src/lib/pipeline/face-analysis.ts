@@ -2,6 +2,7 @@
 import { getGenAIClient } from "../genai-client";
 import { FACE_ANALYSIS_PROMPT } from "../prompts";
 import type { FaceMetadata } from "./types";
+import { withRetry } from "./retry";
 
 const MODEL = "gemini-2.5-pro";
 const TIMEOUT_MS = 60_000;
@@ -33,27 +34,31 @@ export async function analyzeReferenceFace(input: {
   const ai = getGenAIClient();
   const base64 = input.imageBytes.toString("base64");
 
-  const response = await Promise.race([
-    ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: FACE_ANALYSIS_PROMPT },
-            { inlineData: { mimeType: input.mimeType, data: base64 } },
+  const response = await withRetry(
+    () =>
+      Promise.race([
+        ai.models.generateContent({
+          model: MODEL,
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: FACE_ANALYSIS_PROMPT },
+                { inlineData: { mimeType: input.mimeType, data: base64 } },
+              ],
+            },
           ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: FACE_RESPONSE_SCHEMA,
-      },
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("face-analysis timeout")), TIMEOUT_MS),
-    ),
-  ]);
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: FACE_RESPONSE_SCHEMA,
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("face-analysis timeout")), TIMEOUT_MS),
+        ),
+      ]),
+    { label: "stage3-face-analysis" },
+  );
 
   // The @google/genai SDK exposes .text as a getter on the response object
   const text = (response as any).text;

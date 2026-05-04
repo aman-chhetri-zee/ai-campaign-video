@@ -19,6 +19,7 @@
 import { getGenAIClient } from "../genai-client";
 import { GoogleAuth } from "google-auth-library";
 import { framingInstruction, type FramingScope } from "./framing";
+import { withRetry } from "./retry";
 
 const GEMINI_TEXT_MODEL = "gemini-2.5-pro";
 const PROJECT_ID = process.env.GCP_PROJECT_ID || "creatoreconomy-479409";
@@ -182,15 +183,24 @@ async function tier1Customization(input: {
 
   let resp: Response;
   try {
-    resp = await fetchWithTimeout(endpoint, token, {
-      instances: [{ prompt, referenceImages }],
-      parameters: {
-        sampleCount: 1,
-        aspectRatio: "9:16",
-        personGeneration: "allow_adult",
-        safetySetting: "block_some",
+    resp = await withRetry(
+      async () => {
+        const r = await fetchWithTimeout(endpoint, token, {
+          instances: [{ prompt, referenceImages }],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: "9:16",
+            personGeneration: "allow_adult",
+            safetySetting: "block_some",
+          },
+        });
+        if (r.status >= 500 && r.status < 600) {
+          throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+        }
+        return r;
       },
-    });
+      { label: "tier1-customization" },
+    );
   } catch (err) {
     console.warn("[keyframe][tier1] fetch error:", err);
     return null;
@@ -241,22 +251,31 @@ async function tier2Inpaint(input: {
 
   let resp: Response;
   try {
-    resp = await fetchWithTimeout(endpoint, token, {
-      instances: [
-        {
-          prompt: inpaintPrompt,
-          image: { bytesBase64Encoded: faceB64 },
-          maskMode: "MASK_MODE_AUTOMATIC",
-        },
-      ],
-      parameters: {
-        sampleCount: 1,
-        aspectRatio: "9:16",
-        personGeneration: "allow_adult",
-        safetySetting: "block_some",
-        editMode: "EDIT_MODE_INPAINT_INSERTION",
+    resp = await withRetry(
+      async () => {
+        const r = await fetchWithTimeout(endpoint, token, {
+          instances: [
+            {
+              prompt: inpaintPrompt,
+              image: { bytesBase64Encoded: faceB64 },
+              maskMode: "MASK_MODE_AUTOMATIC",
+            },
+          ],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: "9:16",
+            personGeneration: "allow_adult",
+            safetySetting: "block_some",
+            editMode: "EDIT_MODE_INPAINT_INSERTION",
+          },
+        });
+        if (r.status >= 500 && r.status < 600) {
+          throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+        }
+        return r;
       },
-    });
+      { label: "tier2-inpaint" },
+    );
   } catch (err) {
     console.warn("[keyframe][tier2] fetch error:", err);
     return null;
@@ -313,15 +332,19 @@ async function buildImagenPromptLegacy(input: {
     })),
   ];
 
-  const response = await Promise.race([
-    ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
-      contents: [{ role: "user", parts }],
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("keyframe tier3 stage-A timeout")), TIMEOUT_MS),
-    ),
-  ]);
+  const response = await withRetry(
+    () =>
+      Promise.race([
+        ai.models.generateContent({
+          model: GEMINI_TEXT_MODEL,
+          contents: [{ role: "user", parts }],
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("keyframe tier3 stage-A timeout")), TIMEOUT_MS),
+        ),
+      ]),
+    { label: "tier3-stage-a-prompt" },
+  );
 
   const text = (response as any).text ?? "";
   if (!text.trim()) {
@@ -343,15 +366,24 @@ async function tier3TextOnly(input: {
   const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-4.0-generate-001:predict`;
   const token = await getAccessToken();
 
-  const resp = await fetchWithTimeout(endpoint, token, {
-    instances: [{ prompt: imagenPrompt }],
-    parameters: {
-      sampleCount: 1,
-      aspectRatio: "9:16",
-      personGeneration: "allow_adult",
-      safetySetting: "block_some",
+  const resp = await withRetry(
+    async () => {
+      const r = await fetchWithTimeout(endpoint, token, {
+        instances: [{ prompt: imagenPrompt }],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: "9:16",
+          personGeneration: "allow_adult",
+          safetySetting: "block_some",
+        },
+      });
+      if (r.status >= 500 && r.status < 600) {
+        throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      }
+      return r;
     },
-  });
+    { label: "tier3-stage-b-imagen" },
+  );
 
   if (!resp.ok) {
     const errText = await resp.text();

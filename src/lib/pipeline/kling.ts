@@ -1,5 +1,6 @@
 // src/lib/pipeline/kling.ts
 import { createHmac } from "node:crypto";
+import { withRetry } from "./retry";
 
 // Read env vars lazily (inside functions) so dotenv.config() in the calling
 // script has time to populate process.env before these are evaluated.
@@ -161,11 +162,15 @@ async function generateViaImageToVideoWithCamera(input: {
         body.camera_control = cameraControlPayload;
         body.mode = "pro"; // pro mode required when using camera_control
       }
-      submit = await fetchJson("/v1/videos/image2video", {
-        method: "POST",
-        signal: submitController.signal,
-        body: JSON.stringify(body),
-      });
+      submit = await withRetry(
+        () =>
+          fetchJson("/v1/videos/image2video", {
+            method: "POST",
+            signal: submitController.signal,
+            body: JSON.stringify(body),
+          }),
+        { label: "kling-submit-i2v" },
+      );
     } catch (camErr) {
       const msg = (camErr as Error).message ?? "";
       // camera_control / pro mode rejected — fall back gracefully without it
@@ -180,18 +185,22 @@ async function generateViaImageToVideoWithCamera(input: {
           "\n  Error:", msg.slice(0, 300),
         );
         usedCameraControl = false;
-        submit = await fetchJson("/v1/videos/image2video", {
-          method: "POST",
-          body: JSON.stringify({
-            model_name: getModelId(),
-            image: input.keyframeBytes.toString("base64"),
-            prompt: input.motionPrompt,
-            negative_prompt: input.negativePrompt,
-            duration: String(input.durationSeconds),
-            aspect_ratio: input.aspectRatio,
-            cfg_scale: 0.5,
-          }),
-        });
+        submit = await withRetry(
+          () =>
+            fetchJson("/v1/videos/image2video", {
+              method: "POST",
+              body: JSON.stringify({
+                model_name: getModelId(),
+                image: input.keyframeBytes.toString("base64"),
+                prompt: input.motionPrompt,
+                negative_prompt: input.negativePrompt,
+                duration: String(input.durationSeconds),
+                aspect_ratio: input.aspectRatio,
+                cfg_scale: 0.5,
+              }),
+            }),
+          { label: "kling-submit-i2v" },
+        );
       } else {
         throw camErr;
       }
@@ -261,18 +270,22 @@ async function generateViaMotionControl(input: {
 
   let taskId: string;
   try {
-    const submit = await fetchJson("/v1/videos/motion-control", {
-      method: "POST",
-      body: JSON.stringify({
-        model_name: model,
-        image_url: input.keyframeUrl,
-        video_url: input.motionReferenceUrl,
-        mode: "pro",                    // motion control likely requires pro mode
-        character_orientation: "image", // output proportions match keyframe
-        prompt: input.motionPrompt,
-        negative_prompt: input.negativePrompt,
-      }),
-    });
+    const submit = await withRetry(
+      () =>
+        fetchJson("/v1/videos/motion-control", {
+          method: "POST",
+          body: JSON.stringify({
+            model_name: model,
+            image_url: input.keyframeUrl,
+            video_url: input.motionReferenceUrl,
+            mode: "pro",                    // motion control likely requires pro mode
+            character_orientation: "image", // output proportions match keyframe
+            prompt: input.motionPrompt,
+            negative_prompt: input.negativePrompt,
+          }),
+        }),
+      { label: "kling-submit-mc" },
+    );
     taskId = submit.data?.task_id ?? submit.task_id;
     if (!taskId)
       throw new Error(

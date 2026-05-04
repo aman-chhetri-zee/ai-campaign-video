@@ -2,6 +2,7 @@
 import { getGenAIClient } from "../genai-client";
 import { PRODUCT_ANALYSIS_PROMPT } from "../prompts";
 import type { ProductMetadata } from "./types";
+import { withRetry } from "./retry";
 
 const MODEL = "gemini-2.5-pro";
 const TIMEOUT_MS = 60_000;
@@ -59,27 +60,31 @@ export async function analyzeProduct(input: {
   const ai = getGenAIClient();
   const base64 = input.imageBytes.toString("base64");
 
-  const response = await Promise.race([
-    ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: PRODUCT_ANALYSIS_PROMPT },
-            { inlineData: { mimeType: input.mimeType, data: base64 } },
+  const response = await withRetry(
+    () =>
+      Promise.race([
+        ai.models.generateContent({
+          model: MODEL,
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: PRODUCT_ANALYSIS_PROMPT },
+                { inlineData: { mimeType: input.mimeType, data: base64 } },
+              ],
+            },
           ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: PRODUCT_RESPONSE_SCHEMA,
-      },
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("product-analysis timeout")), TIMEOUT_MS),
-    ),
-  ]);
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: PRODUCT_RESPONSE_SCHEMA,
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("product-analysis timeout")), TIMEOUT_MS),
+        ),
+      ]),
+    { label: "stage2-product-analysis" },
+  );
 
   const text = (response as any).text;
   if (!text) throw new Error("product-analysis: empty response");

@@ -8,6 +8,7 @@ import type {
   OrchestratedPrompts,
 } from "./types";
 import type { FramingScope } from "./framing";
+import { withRetry } from "./retry";
 
 const MODEL = "gemini-2.5-pro";
 const TIMEOUT_MS = 60_000;
@@ -31,19 +32,23 @@ export async function orchestratePrompts(input: {
   const ai = getGenAIClient();
   const prompt = buildOrchestrationPrompt(input.template, input.products, input.face, input.options);
 
-  const response = await Promise.race([
-    ai.models.generateContent({
-      model: MODEL,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: ORCHESTRATION_SCHEMA,
-      },
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("orchestrate timeout")), TIMEOUT_MS),
-    ),
-  ]);
+  const response = await withRetry(
+    () =>
+      Promise.race([
+        ai.models.generateContent({
+          model: MODEL,
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: ORCHESTRATION_SCHEMA,
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("orchestrate timeout")), TIMEOUT_MS),
+        ),
+      ]),
+    { label: "stage4-orchestration" },
+  );
 
   const text = (response as any).text;
   if (!text) throw new Error("orchestrate: empty response");
