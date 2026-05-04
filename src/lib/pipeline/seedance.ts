@@ -124,19 +124,30 @@ async function fetchArk(path: string, init?: RequestInit): Promise<any> {
 // ---------------------------------------------------------------------------
 
 function extractVideoUrl(poll: any): string | undefined {
-  // Shape A: content array with video_url items (BytePlus global docs)
+  // Shape A: content array with video_url items
   if (Array.isArray(poll.content)) {
     for (const item of poll.content) {
-      if (item.video_url) return item.video_url;
+      if (typeof item.video_url === "string") return item.video_url;
       if (item.type === "video_url" && item.video_url?.url) return item.video_url.url;
     }
   }
+  // Shape A': content as a single OBJECT with a video_url field (CONFIRMED on dreamina-seedance-2-0)
+  if (poll.content && typeof poll.content === "object" && !Array.isArray(poll.content)) {
+    if (typeof poll.content.video_url === "string") return poll.content.video_url;
+    if (poll.content.video_url?.url) return poll.content.video_url.url;
+  }
   // Shape B: output.video_url
-  if (poll.output?.video_url) return poll.output.video_url;
+  if (poll.output?.video_url) {
+    return typeof poll.output.video_url === "string" ? poll.output.video_url : poll.output.video_url.url;
+  }
   // Shape C: result.video_url
-  if (poll.result?.video_url) return poll.result.video_url;
+  if (poll.result?.video_url) {
+    return typeof poll.result.video_url === "string" ? poll.result.video_url : poll.result.video_url.url;
+  }
   // Shape D: data.video_url
-  if (poll.data?.video_url) return poll.data.video_url;
+  if (poll.data?.video_url) {
+    return typeof poll.data.video_url === "string" ? poll.data.video_url : poll.data.video_url.url;
+  }
   return undefined;
 }
 
@@ -170,37 +181,49 @@ export async function generateMultiShotViaSeedance(input: {
   const duration = input.durationSeconds ?? 5;
   const ratio = input.aspectRatio ?? "9:16";
 
-  // Build content array — text prompt first, then identity keyframe, then
-  // optional outfit images, then the reference video for multi-shot structure.
   // Seedance has two mutually-exclusive content modes:
-  //   - "first_frame" mode (image-to-video, no reference video allowed)
-  //   - "reference_image" / "reference_video" mode (Creative Templates — multi-shot with motion reference)
-  // We're using mode 2 because that's what enables multi-shot template-driven output.
-  // ALL keyframes (primary + outfits) get role "reference_image"; the template gets role "reference_video".
+  //   1. "first_frame" mode — image-to-video. Single keyframe, NO reference video,
+  //      NO additional reference_image items. Output is a 5-10s clip animating the
+  //      keyframe per the text prompt.
+  //   2. "reference_image" + "reference_video" mode — Creative Templates. Multi-shot
+  //      output driven by a reference video. Multiple reference_image items allowed.
+  //
+  // Choice: if SEEDANCE_FIRST_FRAME_ONLY=true OR motionReferenceUrl is missing,
+  // use mode 1. Otherwise mode 2.
+  const firstFrameOnly =
+    process.env.SEEDANCE_FIRST_FRAME_ONLY === "true" || !input.motionReferenceUrl;
+
   const content: any[] = [
     { type: "text", text: input.motionPrompt },
-    {
+  ];
+
+  if (firstFrameOnly) {
+    // Mode 1: image-to-video from a single keyframe
+    content.push({
+      type: "image_url",
+      image_url: { url: input.keyframeUrl },
+      role: "first_frame",
+    });
+  } else {
+    // Mode 2: reference image + reference video for multi-shot
+    content.push({
       type: "image_url",
       image_url: { url: input.keyframeUrl },
       role: "reference_image", // primary identity/composition anchor
-    },
-  ];
-
-  // Additional outfit images as reference_image items
-  for (const url of input.outfitImageUrls ?? []) {
+    });
+    for (const url of input.outfitImageUrls ?? []) {
+      content.push({
+        type: "image_url",
+        image_url: { url },
+        role: "reference_image",
+      });
+    }
     content.push({
-      type: "image_url",
-      image_url: { url },
-      role: "reference_image",
+      type: "video_url",
+      video_url: { url: input.motionReferenceUrl },
+      role: "reference_video",
     });
   }
-
-  // Reference video — Seedance uses this to infer multi-shot structure
-  content.push({
-    type: "video_url",
-    video_url: { url: input.motionReferenceUrl },
-    role: "reference_video",
-  });
 
   const body = {
     model,
