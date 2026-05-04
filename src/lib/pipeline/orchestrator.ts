@@ -1,5 +1,5 @@
 // src/lib/pipeline/orchestrator.ts
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { analyzeReferenceFace } from "./face-analysis";
 import { orchestratePrompts } from "./orchestrate";
@@ -59,6 +59,13 @@ function loadProduct(product_id: string): ProductAsset {
   };
 }
 
+function loadSourcePrompt(template_id: string): string | null {
+  const p = resolve("public/templates", template_id, "source_prompt.txt");
+  if (!existsSync(p)) return null;
+  const content = readFileSync(p, "utf-8").trim();
+  return content || null;
+}
+
 function buildProductDescription(p: ProductAsset): string {
   const filtered = p.metadata.items
     .filter((it) => it.attachment_strategy !== "placed_on_surface")
@@ -102,6 +109,13 @@ async function processLook(args: {
     face: args.face_metadata,
     options: { look_index: args.look_index, total_looks: args.total_looks, framing_scope: framingScope, background_for_look: backgroundForLook },
   });
+
+  // Override motion_prompt with source_prompt.txt if present (Higgsfield-generated prompt)
+  const sourcePrompt = loadSourcePrompt(args.template.id);
+  if (sourcePrompt) {
+    console.log(`[orchestrator] using source_prompt.txt for ${args.template.id} — overriding motion_prompt`);
+    prompts.motion_prompt = sourcePrompt;
+  }
 
   // Stage 5 — keyframe
   updateRun(args.run_id, {
@@ -302,6 +316,13 @@ export async function runPipeline(
         if (i === 0) {
           seedanceMotionPrompt = prompts.motion_prompt;
           seedanceNegativePrompt = prompts.negative_prompt;
+
+          // Override with source_prompt.txt if present (Higgsfield-generated prompt)
+          const sourcePrompt = loadSourcePrompt(template.id);
+          if (sourcePrompt) {
+            console.log(`[orchestrator] using source_prompt.txt for ${template.id} — overriding motion_prompt`);
+            seedanceMotionPrompt = sourcePrompt;
+          }
         }
 
         const productImages = products.map((p) => ({

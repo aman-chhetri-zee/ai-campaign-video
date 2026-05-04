@@ -24,11 +24,11 @@ export async function POST(req: NextRequest) {
         !look ||
         !Array.isArray(look.product_ids) ||
         look.product_ids.length < 1 ||
-        look.product_ids.length > 3 ||
+        look.product_ids.length > 4 ||
         !look.product_ids.every((id: any) => typeof id === "string")
       ) {
         return NextResponse.json(
-          { error: "each look must have product_ids: array of 1–3 strings" },
+          { error: "each look must have product_ids: array of 1–4 strings" },
           { status: 400 },
         );
       }

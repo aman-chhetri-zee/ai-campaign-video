@@ -112,7 +112,7 @@ function buildTier1Prompt(
 
   // Build a Subject [N] binding line for each product
   const productBindings = productDescriptions
-    .slice(0, 3)
+    .slice(0, 4)
     .map((d, i) => `Subject [${i + 2}] is ${sanitiseProductDescription(d)}; render this exact item on Subject [1].`)
     .join(" ");
 
@@ -137,7 +137,7 @@ async function tier1Customization(input: {
 }): Promise<{ imageBytes: Buffer; mimeType: string } | null> {
   const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-capability-001:predict`;
 
-  const productDescriptions = input.products.slice(0, 3).map((p) => p.description);
+  const productDescriptions = input.products.slice(0, 4).map((p) => p.description);
   const prompt = buildTier1Prompt(input.keyframePrompt, productDescriptions, input.framingScope ?? "chest_up", input.backgroundDescription);
   console.log("[keyframe][tier1] prompt:", prompt.slice(0, 300));
 
@@ -450,7 +450,7 @@ async function nanoBananaKeyframe(input: {
         data: input.referenceFace.bytes.toString("base64"),
       },
     },
-    ...input.products.slice(0, 3).map((p) => ({
+    ...input.products.slice(0, 4).map((p) => ({
       inlineData: { mimeType: p.mimeType, data: p.bytes.toString("base64") },
     })),
   ];

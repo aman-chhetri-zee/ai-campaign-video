@@ -14,12 +14,9 @@ async function main() {
     : "image/png";
 
   const run = createRun({
-    template_id: "template-1",   // AI-generated reference (user noted — may bypass Seedance privacy filter)
+    template_id: "template-higgs",   // Higgsfield AI-generated reference
     looks: [
-      { product_ids: ["black-top", "skirt", "black-boots"] },
-      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers"] },
-      { product_ids: ["product-1"] },
-      { product_ids: ["purse", "black-top", "skirt"] },
+      { product_ids: ["skirt", "blue-tshirt", "black-boots", "purse"] },
     ],
     reference_face_path: facePath,
   });
