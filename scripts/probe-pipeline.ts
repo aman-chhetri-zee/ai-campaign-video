@@ -12,16 +12,16 @@ async function main() {
   );
 
   const run = createRun({
-    template_id: "template-2",
+    template_id: "template-3",
     looks: [
-      // Single look with footwear → must force full_body framing AND test motion control
-      { product_ids: ["black-top", "skirt", "black-boots"] },
+      // Single look — product-1 (maroon top + necklace + jeans as one outfit)
+      { product_ids: ["product-1"] },
     ],
     reference_face_path: facePath,
   });
 
   console.log("=== probe: starting pipeline ===");
-  console.log("template:", "template-2");
+  console.log("template:", run.template_id);
   console.log("looks:", JSON.stringify(run.looks));
   console.log("face:", facePath);
   console.log("env: KLING_USE_MOTION_CONTROL =", process.env.KLING_USE_MOTION_CONTROL);
