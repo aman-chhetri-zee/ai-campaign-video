@@ -327,7 +327,7 @@ export default function VideoPocPage() {
         if (l.product_ids.includes(product_id)) {
           return { product_ids: l.product_ids.filter((x) => x !== product_id) };
         }
-        if (l.product_ids.length >= 3) return l;
+        if (l.product_ids.length >= 4) return l;
         return { product_ids: [...l.product_ids, product_id] };
       })
     );
@@ -374,7 +374,7 @@ export default function VideoPocPage() {
   }
 
   const activeLook = looks[activeLookIndex];
-  const activeLookFull = (activeLook?.product_ids.length ?? 0) >= 3;
+  const activeLookFull = (activeLook?.product_ids.length ?? 0) >= 4;
 
   const canGenerate =
     !!templateId &&
@@ -473,7 +473,7 @@ export default function VideoPocPage() {
           <div className="flex items-center gap-3">
             <StepBadge n={2} />
             <h2 className="text-lg font-semibold text-zinc-100">Build Looks</h2>
-            <span className="text-sm text-zinc-500">1–4 shots · up to 3 items each</span>
+            <span className="text-sm text-zinc-500">1–4 shots · up to 4 items each</span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
@@ -590,7 +590,7 @@ export default function VideoPocPage() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-3">
                 {activeLook
-                  ? `Editing Look ${activeLookIndex + 1} · ${activeLook.product_ids.length}/3 items`
+                  ? `Editing Look ${activeLookIndex + 1} · ${activeLook.product_ids.length}/4 items`
                   : "Catalog"}
               </p>
               {activeLook ? (

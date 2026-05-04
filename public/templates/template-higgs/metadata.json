@@ -1,0 +1,65 @@
+{
+  "scene_description": "A woman stands in a brightly lit, modern apartment and does a quick outfit reveal. She first shows the outfit on a hanger, and then after a jump cut, she is wearing it and strikes a few poses.",
+  "subject": {
+    "rough_pose": "standing",
+    "framing": "medium shot",
+    "lighting": "bright, natural daylight from the side"
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 2.6,
+      "action": "A person stands facing the camera, holding an outfit on a hanger, smiling and talking."
+    },
+    {
+      "t_start": 2.6,
+      "t_end": 3.2,
+      "action": "A jump cut transition occurs."
+    },
+    {
+      "t_start": 3.2,
+      "t_end": 5,
+      "action": "The person, now wearing the outfit, gestures with open hands and then places them on their waist in a surprised expression."
+    },
+    {
+      "t_start": 5,
+      "t_end": 6.8,
+      "action": "The person smooths the front of their top while looking down and then back at the camera."
+    },
+    {
+      "t_start": 6.8,
+      "t_end": 7.5,
+      "action": "The person turns to their right to show their side profile to the camera."
+    },
+    {
+      "t_start": 7.5,
+      "t_end": 8.6,
+      "action": "The person turns back to face the camera, arms slightly outstretched."
+    },
+    {
+      "t_start": 8.6,
+      "t_end": 10,
+      "action": "The person places their left hand on their hip, posing for the camera."
+    }
+  ],
+  "composition_notes": "The shot is static from a fixed camera, likely on a tripod. The composition is centered on the subject. A single jump cut is used for the outfit change transition.",
+  "style": {
+    "lens": "natural 35-50mm equivalent",
+    "color_treatment": "natural and bright with warm tones",
+    "lighting_effects": "bright, natural window light from the right side",
+    "special_effects": [
+      "jump cut"
+    ]
+  },
+  "pose_archetypes": [
+    "enthusiastic",
+    "surprised",
+    "pleased",
+    "stylish",
+    "confident"
+  ],
+  "energy": "upbeat and quick try-on reveal",
+  "shot_backgrounds": [
+    "modern apartment interior with light wood floors, neutral-colored cabinets in the background, and a large arched floor mirror."
+  ]
+}

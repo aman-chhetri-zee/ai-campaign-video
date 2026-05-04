@@ -1,5 +1,5 @@
 // src/lib/pipeline/orchestrator.ts
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { analyzeReferenceFace } from "./face-analysis";
 import { orchestratePrompts } from "./orchestrate";
@@ -7,6 +7,7 @@ import { compositeKeyframe } from "./keyframe";
 import { inferFramingScope } from "./framing";
 import { judgeKeyframe } from "./judge";
 import { generateVideoFromKeyframe } from "./kling";
+import { generateMultiShotViaSeedance } from "./seedance";
 import { concatClips } from "./concat";
 import { updateRun, getRun } from "./run-store";
 import { uploadToBlob } from "./upload";
@@ -22,6 +23,12 @@ const VERCEL_DEPLOYMENT_URL =
   process.env.VERCEL_DEPLOYMENT_URL ?? "https://ai-campaign-video.vercel.app";
 
 const USE_MOTION_CONTROL = () => process.env.KLING_USE_MOTION_CONTROL === "true";
+
+// ---------------------------------------------------------------------------
+// Feature flag — when true, Seedance handles multi-shot generation natively
+// (one API call for all looks) instead of the per-look Kling loop.
+// ---------------------------------------------------------------------------
+const USE_SEEDANCE = () => process.env.USE_SEEDANCE === "true";
 
 function loadTemplate(template_id: string): TemplateAsset {
   const dir = resolve("public/templates", template_id);
@@ -50,6 +57,13 @@ function loadProduct(product_id: string): ProductAsset {
     image_path: `products/${product_id}/image.png`,
     metadata,
   };
+}
+
+function loadSourcePrompt(template_id: string): string | null {
+  const p = resolve("public/templates", template_id, "source_prompt.txt");
+  if (!existsSync(p)) return null;
+  const content = readFileSync(p, "utf-8").trim();
+  return content || null;
 }
 
 function buildProductDescription(p: ProductAsset): string {
@@ -95,6 +109,13 @@ async function processLook(args: {
     face: args.face_metadata,
     options: { look_index: args.look_index, total_looks: args.total_looks, framing_scope: framingScope, background_for_look: backgroundForLook },
   });
+
+  // Override motion_prompt with source_prompt.txt if present (Higgsfield-generated prompt)
+  const sourcePrompt = loadSourcePrompt(args.template.id);
+  if (sourcePrompt) {
+    console.log(`[orchestrator] using source_prompt.txt for ${args.template.id} — overriding motion_prompt`);
+    prompts.motion_prompt = sourcePrompt;
+  }
 
   // Stage 5 — keyframe
   updateRun(args.run_id, {
@@ -247,7 +268,173 @@ export async function runPipeline(
 
     const templateFirstFrame = readFileSync(resolve("public", template.first_frame_path));
 
-    // Per-look loop
+    // -----------------------------------------------------------------------
+    // SEEDANCE PATH — single multi-shot call for all looks
+    // -----------------------------------------------------------------------
+    if (USE_SEEDANCE()) {
+      console.log("[orchestrator] USE_SEEDANCE=true — using Seedance 2.0 multi-shot path");
+
+      // Build the reference video URL (template served from Vercel deployment)
+      const motionReferenceUrl = `${VERCEL_DEPLOYMENT_URL}/${template.video_path}`;
+
+      // Generate keyframes for every look and upload them to Blob
+      const keyframeUrls: string[] = [];
+      const blobKeyframeUrls: string[] = [];
+      // Capture the first look's motion prompt to drive the Seedance call
+      let seedanceMotionPrompt = "";
+      let seedanceNegativePrompt = "";
+
+      for (let i = 0; i < run.looks.length; i++) {
+        updateRun(run_id, {
+          status: "compositing_keyframe",
+          progress_label: `Placing products for look ${i + 1} of ${run.looks.length}…`,
+          current_look_index: i,
+        });
+
+        const products = run.looks[i].product_ids.map(loadProduct);
+        const framingScope = inferFramingScope(products.map((p) => p.metadata));
+        const backgrounds =
+          template.metadata.shot_backgrounds &&
+          template.metadata.shot_backgrounds.length > 0
+            ? template.metadata.shot_backgrounds
+            : ["clean neutral solid backdrop"];
+        const backgroundForLook = backgrounds[i % backgrounds.length];
+
+        const prompts = await orchestratePrompts({
+          template: template.metadata,
+          products: products.map((p) => p.metadata),
+          face,
+          options: {
+            look_index: i,
+            total_looks: run.looks.length,
+            framing_scope: framingScope,
+            background_for_look: backgroundForLook,
+          },
+        });
+
+        // Capture look-0 prompt as the primary motion prompt for Seedance
+        if (i === 0) {
+          seedanceMotionPrompt = prompts.motion_prompt;
+          seedanceNegativePrompt = prompts.negative_prompt;
+
+          // Override with source_prompt.txt if present (Higgsfield-generated prompt)
+          const sourcePrompt = loadSourcePrompt(template.id);
+          if (sourcePrompt) {
+            console.log(`[orchestrator] using source_prompt.txt for ${template.id} — overriding motion_prompt`);
+            seedanceMotionPrompt = sourcePrompt;
+          }
+        }
+
+        const productImages = products.map((p) => ({
+          bytes: readFileSync(resolve("public", p.image_path)),
+          mimeType: "image/png" as const,
+          description: buildProductDescription(p),
+        }));
+
+        let keyframe = await compositeKeyframe({
+          keyframePrompt: prompts.keyframe_prompt,
+          templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
+          referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
+          products: productImages,
+          faceDescription,
+          framingScope,
+          backgroundDescription: backgroundForLook,
+        });
+
+        // Judge with one retry
+        const judgement = await judgeKeyframe({
+          keyframe: { bytes: keyframe.imageBytes, mimeType: keyframe.mimeType },
+          referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
+          products: productImages.map((p) => ({ bytes: p.bytes, mimeType: p.mimeType })),
+        });
+
+        if (
+          !judgement.identity_preserved ||
+          !judgement.all_products_present ||
+          !judgement.products_correctly_placed
+        ) {
+          console.warn(
+            `[orchestrator][seedance] look ${i} judge flagged issues, retrying once:`,
+            judgement.issues,
+          );
+          const retryPrompt = `${prompts.keyframe_prompt}\n\nCORRECTIONS based on the previous attempt — fix these issues explicitly:\n${judgement.issues.map((x) => `- ${x}`).join("\n")}`;
+          keyframe = await compositeKeyframe({
+            keyframePrompt: retryPrompt,
+            templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
+            referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
+            products: productImages,
+            faceDescription,
+            framingScope,
+            backgroundDescription: backgroundForLook,
+          });
+        }
+
+        const keyframePath = join(runDir, `keyframe-${i}.png`);
+        writeFileSync(keyframePath, keyframe.imageBytes);
+        keyframeUrls.push(`/runs/${run_id}/keyframe-${i}.png`);
+
+        // Upload to Blob for Seedance (needs HTTPS URL)
+        try {
+          const blobUrl = await uploadToBlob(
+            `keyframes/${run_id}/look-${i}.png`,
+            keyframe.imageBytes,
+            keyframe.mimeType,
+          );
+          console.log(`[orchestrator][seedance] uploaded keyframe ${i}: ${blobUrl}`);
+          blobKeyframeUrls.push(blobUrl);
+        } catch (err) {
+          throw new Error(
+            `[orchestrator][seedance] keyframe upload failed for look ${i} (Seedance requires HTTPS URLs): ${(err as Error).message}`,
+          );
+        }
+      }
+
+      updateRun(run_id, { per_look_keyframe_urls: keyframeUrls });
+
+      // Single Seedance call — first keyframe is the identity anchor;
+      // remaining keyframes are passed as outfit reference images.
+      const [primaryKeyframeUrl, ...outfitImageUrls] = blobKeyframeUrls;
+
+      updateRun(run_id, {
+        status: "generating_video",
+        progress_label: "Rendering multi-shot video via Seedance 2.0…",
+        current_look_index: 0,
+      });
+
+      const seedanceResult = await generateMultiShotViaSeedance({
+        keyframeUrl: primaryKeyframeUrl,
+        outfitImageUrls,
+        motionReferenceUrl,
+        motionPrompt: seedanceMotionPrompt,
+        negativePrompt: seedanceNegativePrompt,
+        durationSeconds: 5,
+        aspectRatio: "9:16",
+      });
+
+      // Save the raw video (no concat needed — Seedance produces multi-shot natively)
+      const rawPath = join(runDir, "seedance-raw.mp4");
+      writeFileSync(rawPath, seedanceResult.videoBytes);
+
+      // Mux audio from the template (Seedance audio is disabled; we add template BGM)
+      updateRun(run_id, {
+        status: "concatenating",
+        progress_label: "Muxing audio…",
+      });
+      const finalPath = join(runDir, "output.mp4");
+      const templateVideoPath = resolve("public", template.video_path);
+      // concatClips with a single clip just copies + muxes audio
+      await concatClips([rawPath], finalPath, templateVideoPath);
+
+      return updateRun(run_id, {
+        status: "succeeded",
+        video_url: `/runs/${run_id}/output.mp4`,
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // KLING PATH (default) — per-look loop, unchanged
+    // -----------------------------------------------------------------------
+
     const keyframeUrls: string[] = [];
     const clipUrls: string[] = [];
     const clipPaths: string[] = [];

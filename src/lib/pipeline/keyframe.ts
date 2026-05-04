@@ -112,7 +112,7 @@ function buildTier1Prompt(
 
   // Build a Subject [N] binding line for each product
   const productBindings = productDescriptions
-    .slice(0, 3)
+    .slice(0, 4)
     .map((d, i) => `Subject [${i + 2}] is ${sanitiseProductDescription(d)}; render this exact item on Subject [1].`)
     .join(" ");
 
@@ -137,7 +137,7 @@ async function tier1Customization(input: {
 }): Promise<{ imageBytes: Buffer; mimeType: string } | null> {
   const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-capability-001:predict`;
 
-  const productDescriptions = input.products.slice(0, 3).map((p) => p.description);
+  const productDescriptions = input.products.slice(0, 4).map((p) => p.description);
   const prompt = buildTier1Prompt(input.keyframePrompt, productDescriptions, input.framingScope ?? "chest_up", input.backgroundDescription);
   console.log("[keyframe][tier1] prompt:", prompt.slice(0, 300));
 
@@ -413,7 +413,7 @@ async function tier3TextOnly(input: {
  *
  * Routing:
  *   Single-product (0–1):  Tier 1 → Tier 2 → Tier 3
- *   Multi-product  (2–3):  Tier 3 → Tier 2
+ *   Multi-product  (2+):   Tier 3 → Tier 2
  *
  * Imagen 3 Customization (Tier 1) caps at 2 reference images for 9:16 aspect
  * ratio (face + 1 product). Multi-product looks would exceed that cap and
