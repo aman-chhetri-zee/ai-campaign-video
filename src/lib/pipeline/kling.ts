@@ -9,7 +9,7 @@ import { withRetry } from "./retry";
 
 const SUBMIT_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 5_000;
-const POLL_MAX_ATTEMPTS = 60;
+const POLL_MAX_ATTEMPTS = 180; // 180 × 5s = 15 min wall clock — Motion Control occasionally takes 6+ min
 
 // Lazy getters — read at call time, not at module load time.
 function getModelId(): string {
@@ -247,7 +247,7 @@ async function generateViaImageToVideoWithCamera(input: {
   }
 
   throw new Error(
-    `Kling polling exceeded ${POLL_MAX_ATTEMPTS} attempts (5 min)`,
+    `Kling polling exceeded ${POLL_MAX_ATTEMPTS} attempts (15 min)`,
   );
 }
 
