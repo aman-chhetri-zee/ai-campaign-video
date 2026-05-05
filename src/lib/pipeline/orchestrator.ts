@@ -8,6 +8,7 @@ import { inferFramingScope } from "./framing";
 import { judgeKeyframe } from "./judge";
 import { generateVideoFromKeyframe } from "./kling";
 import { generateMultiShotViaSeedance } from "./seedance";
+import { generateViaKieSeedance } from "./kie-seedance";
 import { concatClips } from "./concat";
 import { generateMasterSubjectReference } from "./master-subject";
 import { updateRun, getRun } from "./run-store";
@@ -26,15 +27,29 @@ const VERCEL_DEPLOYMENT_URL =
 const USE_MOTION_CONTROL = () => process.env.KLING_USE_MOTION_CONTROL === "true";
 
 // ---------------------------------------------------------------------------
-// Feature flag — when true, Seedance handles multi-shot generation natively
-// (one API call for all looks) instead of the per-look Kling loop.
+// Provider switching — VIDEO_PROVIDER enum: kling | seedance | kie_seedance
+// Backward compat: USE_SEEDANCE=true maps to "seedance" when VIDEO_PROVIDER unset.
 // ---------------------------------------------------------------------------
-const USE_SEEDANCE = () => process.env.USE_SEEDANCE === "true";
+type VideoProvider = "kling" | "seedance" | "kie_seedance";
+
+function getVideoProvider(): VideoProvider {
+  const explicit = process.env.VIDEO_PROVIDER?.trim().toLowerCase();
+  if (
+    explicit === "kling" ||
+    explicit === "seedance" ||
+    explicit === "kie_seedance"
+  ) {
+    return explicit;
+  }
+  // Backward compat — old USE_SEEDANCE boolean
+  if (process.env.USE_SEEDANCE === "true") return "seedance";
+  return "kling";
+}
 
 // ---------------------------------------------------------------------------
-// Feature flag — when true, stop after keyframe generation and skip Kling
-// motion-control calls and the final concat. Useful for testing image quality
-// without burning Kling credits.
+// Feature flag — when true, stop after keyframe generation and skip all video
+// generation calls and the final concat. Useful for testing image quality
+// without burning credits.
 // ---------------------------------------------------------------------------
 const SKIP_KLING = () => process.env.SKIP_KLING === "true";
 
@@ -342,11 +357,14 @@ export async function runPipeline(
       console.warn("[orchestrator] master subject generation failed — falling back to original reference photo");
     }
 
+    const provider = getVideoProvider();
+    console.log(`[orchestrator] video provider: ${provider}`);
+
     // -----------------------------------------------------------------------
     // SEEDANCE PATH — single multi-shot call for all looks
     // -----------------------------------------------------------------------
-    if (USE_SEEDANCE()) {
-      console.log("[orchestrator] USE_SEEDANCE=true — using Seedance 2.0 multi-shot path");
+    if (provider === "seedance") {
+      console.log("[orchestrator] provider=seedance — using Seedance 2.0 multi-shot path");
 
       // Build the reference video URL (template served from Vercel deployment)
       const motionReferenceUrl = `${VERCEL_DEPLOYMENT_URL}/${template.video_path}`;
@@ -498,6 +516,190 @@ export async function runPipeline(
       const templateVideoPath = resolve("public", template.video_path);
       // concatClips with a single clip just copies + muxes audio
       await concatClips([rawPath], finalPath, templateVideoPath);
+
+      return updateRun(run_id, {
+        status: "succeeded",
+        video_url: `/runs/${run_id}/output.mp4`,
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // KIE_SEEDANCE PATH — per-look loop via kie.ai bytedance/seedance-2
+    // Each look gets its own keyframe + reference_video call (parallel to Kling).
+    // -----------------------------------------------------------------------
+    if (provider === "kie_seedance") {
+      console.log("[orchestrator] provider=kie_seedance — using kie.ai per-look path");
+
+      // Template video URL served from Vercel deployment (kie.ai fetches it server-side)
+      const motionReferenceUrl = `${VERCEL_DEPLOYMENT_URL}/${template.video_path}`;
+
+      const keyframeUrls: string[] = [];
+      const clipUrls: string[] = [];
+      const clipPaths: string[] = [];
+
+      for (let i = 0; i < run.looks.length; i++) {
+        console.log(`[orchestrator] look ${i} video provider: kie_seedance`);
+
+        updateRun(run_id, {
+          status: "compositing_keyframe",
+          progress_label: `Placing products for look ${i + 1} of ${run.looks.length}…`,
+          current_look_index: i,
+        });
+
+        const products = run.looks[i].product_ids.map(loadProduct);
+        const framingScope = inferFramingScope(products.map((p) => p.metadata));
+        const backgrounds =
+          template.metadata.shot_backgrounds &&
+          template.metadata.shot_backgrounds.length > 0
+            ? template.metadata.shot_backgrounds
+            : ["clean neutral solid backdrop"];
+        const backgroundForLook = backgrounds[i % backgrounds.length];
+
+        const segmentIdx = i % 4;
+        const totalDuration = template.metadata.motion_script.at(-1)?.t_end ?? 1;
+        const segDur = totalDuration / 4;
+        const segStart = segmentIdx * segDur;
+        const segEnd = (segmentIdx + 1) * segDur;
+        const motionScriptForLook = template.metadata.motion_script.filter(
+          (e) => e.t_end > segStart && e.t_start < segEnd,
+        );
+
+        const prompts = await orchestratePrompts({
+          template: template.metadata,
+          products: products.map((p) => p.metadata),
+          face,
+          options: {
+            look_index: i,
+            total_looks: run.looks.length,
+            framing_scope: framingScope,
+            background_for_look: backgroundForLook,
+            motion_script_for_this_look: motionScriptForLook,
+          },
+        });
+
+        // Override motion_prompt with source_prompt.txt if present
+        const sourcePrompt = loadSourcePrompt(template.id);
+        if (sourcePrompt) {
+          console.log(`[orchestrator] using source_prompt.txt for ${template.id} — overriding motion_prompt`);
+          prompts.motion_prompt = sourcePrompt;
+        }
+
+        const productImages = products.map((p) => ({
+          bytes: readFileSync(resolve("public", p.image_path)),
+          mimeType: "image/png" as const,
+          description: buildProductDescription(p),
+        }));
+
+        let keyframe = await compositeKeyframe({
+          keyframePrompt: prompts.keyframe_prompt,
+          templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
+          referenceFace: { bytes: anchorFaceBytes, mimeType: anchorFaceMimeType },
+          products: productImages,
+          faceDescription,
+          framingScope,
+          backgroundDescription: backgroundForLook,
+        });
+
+        // Judge with one retry
+        const judgement = await judgeKeyframe({
+          keyframe: { bytes: keyframe.imageBytes, mimeType: keyframe.mimeType },
+          referenceFace: { bytes: anchorFaceBytes, mimeType: anchorFaceMimeType },
+          products: productImages.map((p) => ({ bytes: p.bytes, mimeType: p.mimeType })),
+        });
+
+        if (
+          !judgement.identity_preserved ||
+          !judgement.all_products_present ||
+          !judgement.products_correctly_placed
+        ) {
+          console.warn(
+            `[orchestrator][kie-seedance] look ${i} judge flagged issues, retrying once:`,
+            judgement.issues,
+          );
+          const retryPrompt = `${prompts.keyframe_prompt}\n\nCORRECTIONS based on the previous attempt — fix these issues explicitly:\n${judgement.issues.map((x) => `- ${x}`).join("\n")}`;
+          keyframe = await compositeKeyframe({
+            keyframePrompt: retryPrompt,
+            templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
+            referenceFace: { bytes: anchorFaceBytes, mimeType: anchorFaceMimeType },
+            products: productImages,
+            faceDescription,
+            framingScope,
+            backgroundDescription: backgroundForLook,
+          });
+        }
+
+        const keyframePath = join(runDir, `keyframe-${i}.png`);
+        writeFileSync(keyframePath, keyframe.imageBytes);
+        keyframeUrls.push(`/runs/${run_id}/keyframe-${i}.png`);
+
+        // SKIP_KLING early exit
+        if (SKIP_KLING()) {
+          console.log(`[orchestrator] SKIP_KLING=true — keyframe ${i} saved, skipping video generation`);
+          continue;
+        }
+
+        // Upload keyframe to Blob for kie.ai (needs HTTPS URL)
+        let keyframeBlobUrl: string;
+        try {
+          keyframeBlobUrl = await uploadToBlob(
+            `keyframes/${run_id}/look-${i}.png`,
+            keyframe.imageBytes,
+            keyframe.mimeType,
+          );
+          console.log(`[orchestrator][kie-seedance] uploaded keyframe ${i} to blob: ${keyframeBlobUrl}`);
+        } catch (err) {
+          throw new Error(
+            `[orchestrator][kie-seedance] keyframe upload failed for look ${i}: ${(err as Error).message}`,
+          );
+        }
+
+        updateRun(run_id, {
+          status: "generating_video",
+          progress_label: `Rendering motion for look ${i + 1} of ${run.looks.length}…`,
+          current_look_index: i,
+        });
+
+        const kieResult = await generateViaKieSeedance({
+          keyframeUrl: keyframeBlobUrl,
+          motionReferenceUrl,
+          motionPrompt: prompts.motion_prompt,
+          negativePrompt: prompts.negative_prompt,
+          durationSeconds: 5,
+          aspectRatio: "9:16",
+          resolution: "720p",
+        });
+
+        const clipPath = join(runDir, `clip-${i}.mp4`);
+        writeFileSync(clipPath, kieResult.videoBytes);
+        clipPaths.push(clipPath);
+        clipUrls.push(`/runs/${run_id}/clip-${i}.mp4`);
+
+        updateRun(run_id, {
+          per_look_keyframe_urls: [...keyframeUrls],
+          per_look_clip_urls: [...clipUrls],
+        });
+      }
+
+      updateRun(run_id, { per_look_keyframe_urls: keyframeUrls });
+
+      // SKIP_KLING stop — no concat
+      if (SKIP_KLING()) {
+        console.log("[orchestrator] SKIP_KLING=true — stopping after keyframe generation");
+        return updateRun(run_id, {
+          status: "succeeded",
+          progress_label: "Keyframes generated (video generation skipped)",
+          per_look_keyframe_urls: keyframeUrls,
+        });
+      }
+
+      // Concat all per-look clips + mux template audio
+      updateRun(run_id, {
+        status: "concatenating",
+        progress_label: "Stitching final video…",
+      });
+      const finalPath = join(runDir, "output.mp4");
+      const templateVideoPath = resolve("public", template.video_path);
+      await concatClips(clipPaths, finalPath, templateVideoPath);
 
       return updateRun(run_id, {
         status: "succeeded",
