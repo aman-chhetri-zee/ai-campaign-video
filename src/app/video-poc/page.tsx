@@ -444,40 +444,41 @@ export default function VideoPocPage() {
             <h2 className="text-lg font-semibold text-zinc-100">Choose a Template</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {templates.map((t) => (
-              <div
-                key={t.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setTemplateId(t.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setTemplateId(t.id);
-                  }
-                }}
-                className={`cursor-pointer rounded-xl border-2 p-2 transition-all group focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                  templateId === t.id
-                    ? "border-blue-500 ring-2 ring-blue-500/30"
-                    : "border-zinc-800 hover:border-zinc-600"
-                }`}
-              >
-                {/* stopPropagation lets the user play the preview without
-                    accidentally selecting/deselecting the template */}
-                <video
-                  src={t.video_url}
-                  poster={t.first_frame_url}
-                  controls
-                  preload="metadata"
-                  playsInline
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-full aspect-[9/16] object-cover rounded-lg bg-black"
-                />
-                <div className="mt-2 text-sm font-medium text-zinc-300 text-left">
-                  {t.id}
+            {templates.map((t) => {
+              const isSelected = templateId === t.id;
+              return (
+                <div
+                  key={t.id}
+                  className={`rounded-xl border-2 p-2 transition-all ${
+                    isSelected
+                      ? "border-blue-500 ring-2 ring-blue-500/30"
+                      : "border-zinc-800 hover:border-zinc-600"
+                  }`}
+                >
+                  {/* Preview video — uses native HTML5 controls. Click play to preview. */}
+                  <video
+                    src={t.video_url}
+                    poster={t.first_frame_url}
+                    controls
+                    preload="metadata"
+                    playsInline
+                    className="w-full aspect-[9/16] object-cover rounded-lg bg-black"
+                  />
+                  {/* Explicit Select button — separate from video controls so they don't fight */}
+                  <button
+                    type="button"
+                    onClick={() => setTemplateId(t.id)}
+                    className={`mt-2 w-full text-sm font-medium px-3 py-2 rounded-md transition ${
+                      isSelected
+                        ? "bg-blue-500 text-white"
+                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                    }`}
+                  >
+                    {isSelected ? `✓ ${t.id} selected` : `Select ${t.id}`}
+                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
