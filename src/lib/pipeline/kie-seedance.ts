@@ -48,13 +48,21 @@ async function fetchKie(
  * Uses keyframe as reference_image_urls[0] and template as reference_video_urls[0].
  * Falls back to first_frame_url mode if no motionReferenceUrl is provided
  * (mutually exclusive with reference_video_urls per kie.ai's API).
+ *
+ * Additional identity anchors (master subject, original creator face) and product
+ * images can be passed via identityReferenceUrls and productReferenceUrls.
+ * kie.ai Seedance accepts up to 9 reference_image_urls — we dedupe + cap at 9.
  */
 export async function generateViaKieSeedance(input: {
   keyframeUrl: string;
+  /** ADDITIONAL reference images (master subject, original creator photo, product images)
+   *  to anchor identity AND product fidelity in the generated video. */
+  identityReferenceUrls?: string[];      // master + original creator face URLs
+  productReferenceUrls?: string[];       // product images for visual consistency
   motionReferenceUrl?: string;
   motionPrompt: string;
   negativePrompt?: string;
-  durationSeconds?: 4 | 5 | 8 | 10 | 15;
+  durationSeconds?: 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
   aspectRatio?: "9:16" | "16:9" | "1:1" | "4:3" | "3:4" | "21:9";
   resolution?: "480p" | "720p" | "1080p";
 }): Promise<{ videoBytes: Buffer; videoUrl: string }> {
@@ -62,6 +70,18 @@ export async function generateViaKieSeedance(input: {
   const resolution = input.resolution ?? getResolution();
   const aspectRatio = input.aspectRatio ?? "9:16";
   const duration = input.durationSeconds ?? 5;
+
+  // Build the deduplicated, capped reference image list:
+  // keyframe first, then identity anchors, then product images (max 9 per kie.ai cap)
+  const allRefImages = [
+    input.keyframeUrl,
+    ...(input.identityReferenceUrls ?? []),
+    ...(input.productReferenceUrls ?? []),
+  ].filter((u, i, a) => a.indexOf(u) === i).slice(0, 9); // dedupe + cap at 9
+
+  console.log(
+    `[kie-seedance] sending ${allRefImages.length} reference images (1 keyframe + ${input.identityReferenceUrls?.length ?? 0} identity + ${input.productReferenceUrls?.length ?? 0} products)`,
+  );
 
   // Build input — multimodal if motionReferenceUrl given, else first_frame mode
   const reqInput: Record<string, unknown> = {
@@ -73,9 +93,11 @@ export async function generateViaKieSeedance(input: {
     nsfw_checker: false,
   };
   if (input.motionReferenceUrl) {
-    reqInput.reference_image_urls = [input.keyframeUrl];
+    reqInput.reference_image_urls = allRefImages;
     reqInput.reference_video_urls = [input.motionReferenceUrl];
   } else {
+    // first_frame mode: use keyframe as first_frame_url; skip extra refs as
+    // kie.ai docs do not allow reference_image_urls alongside first_frame_url.
     reqInput.first_frame_url = input.keyframeUrl;
   }
 

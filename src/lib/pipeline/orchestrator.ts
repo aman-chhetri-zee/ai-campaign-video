@@ -1,6 +1,7 @@
 // src/lib/pipeline/orchestrator.ts
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
+import ffmpeg from "fluent-ffmpeg";
 import { analyzeReferenceFace } from "./face-analysis";
 import { orchestratePrompts } from "./orchestrate";
 import { compositeKeyframe } from "./keyframe";
@@ -279,12 +280,23 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
     }
   }
 
+  // Compute per-segment target duration from the motion_script slice.
+  // Kling supports 5s or 10s only — snap to whichever is closer.
+  const klingSegmentSpan =
+    motionScriptForLook.length > 0
+      ? motionScriptForLook.at(-1)!.t_end - motionScriptForLook[0].t_start
+      : 5;
+  const klingDuration: 5 | 10 = klingSegmentSpan <= 7 ? 5 : 10;
+  console.log(
+    `[orchestrator] look ${args.look_index} segment_span=${klingSegmentSpan.toFixed(1)}s → requesting ${klingDuration}s Kling clip`,
+  );
+
   const video = await generateVideoFromKeyframe({
     keyframeBytes: keyframe.imageBytes,
     keyframeMimeType: keyframe.mimeType,
     motionPrompt: prompts.motion_prompt,
     negativePrompt: prompts.negative_prompt,
-    durationSeconds: 5,
+    durationSeconds: klingDuration,
     aspectRatio: "9:16",
     poseArchetype,                 // drives camera_control (Path 1)
     motionReferenceVideoPath,      // reference video for Motion Control (Path 2, legacy fallback)
@@ -356,6 +368,34 @@ export async function runPipeline(
     } else {
       console.warn("[orchestrator] master subject generation failed — falling back to original reference photo");
     }
+
+    // Upload master subject + original reference face to Vercel Blob so kie.ai
+    // can use them as identity anchors (needs public HTTPS URLs).
+    const masterBlobUrl = master
+      ? await uploadToBlob(
+          `identity/${run_id}/master-subject.png`,
+          master.imageBytes,
+          master.mimeType,
+        ).catch((e) => {
+          console.warn("[orchestrator] master blob upload failed:", (e as Error).message);
+          return undefined;
+        })
+      : undefined;
+
+    const originalRefExt = input.referenceFaceMimeType.split("/")[1] ?? "jpg";
+    const originalRefBlobUrl = await uploadToBlob(
+      `identity/${run_id}/original-reference.${originalRefExt}`,
+      input.referenceFaceBytes,
+      input.referenceFaceMimeType,
+    ).catch((e) => {
+      console.warn("[orchestrator] original ref blob upload failed:", (e as Error).message);
+      return undefined;
+    });
+
+    // Deduplicated identity reference URLs for kie.ai (master + original face)
+    const identityReferenceUrls = [masterBlobUrl, originalRefBlobUrl].filter(
+      (u): u is string => !!u,
+    );
 
     const provider = getVideoProvider();
     console.log(`[orchestrator] video provider: ${provider}`);
@@ -653,6 +693,25 @@ export async function runPipeline(
           );
         }
 
+        // Compute per-segment target duration from the motion_script slice
+        const segmentSpan =
+          motionScriptForLook.length > 0
+            ? motionScriptForLook.at(-1)!.t_end - motionScriptForLook[0].t_start
+            : 5;
+        // kie.ai Seedance accepts integer 4–15s. Clamp + round.
+        const targetDurationSeconds = Math.max(
+          4,
+          Math.min(15, Math.round(segmentSpan)),
+        ) as 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
+        console.log(
+          `[orchestrator] look ${i} segment_span=${segmentSpan.toFixed(1)}s → requesting ${targetDurationSeconds}s clip`,
+        );
+
+        // Build product reference URLs from the public deployment (no extra upload needed)
+        const productReferenceUrls = products.map(
+          (p) => `${VERCEL_DEPLOYMENT_URL}/${p.image_path}`,
+        );
+
         updateRun(run_id, {
           status: "generating_video",
           progress_label: `Rendering motion for look ${i + 1} of ${run.looks.length}…`,
@@ -661,16 +720,30 @@ export async function runPipeline(
 
         const kieResult = await generateViaKieSeedance({
           keyframeUrl: keyframeBlobUrl,
+          identityReferenceUrls,
+          productReferenceUrls,
           motionReferenceUrl,
           motionPrompt: prompts.motion_prompt,
           negativePrompt: prompts.negative_prompt,
-          durationSeconds: 5,
+          durationSeconds: targetDurationSeconds,
           aspectRatio: "9:16",
           resolution: "720p",
         });
 
         const clipPath = join(runDir, `clip-${i}.mp4`);
         writeFileSync(clipPath, kieResult.videoBytes);
+
+        // Log actual vs requested duration
+        const actualDuration = await new Promise<number>((resolve) => {
+          ffmpeg.ffprobe(clipPath, (err, data) => {
+            if (err) return resolve(0);
+            resolve(data.format?.duration ?? 0);
+          });
+        });
+        console.log(
+          `[orchestrator] look ${i} duration check: requested=${targetDurationSeconds}s actual=${actualDuration.toFixed(2)}s`,
+        );
+
         clipPaths.push(clipPath);
         clipUrls.push(`/runs/${run_id}/clip-${i}.mp4`);
 
@@ -700,6 +773,14 @@ export async function runPipeline(
       const finalPath = join(runDir, "output.mp4");
       const templateVideoPath = resolve("public", template.video_path);
       await concatClips(clipPaths, finalPath, templateVideoPath);
+
+      // Verify the final output with ffprobe
+      ffmpeg.ffprobe(finalPath, (err, data) => {
+        if (err) return;
+        console.log(
+          `[orchestrator] final mp4 verify — duration=${data.format?.duration}s, streams=${data.streams?.length}, nb_frames=${data.streams?.[0]?.nb_frames ?? "n/a"}`,
+        );
+      });
 
       return updateRun(run_id, {
         status: "succeeded",

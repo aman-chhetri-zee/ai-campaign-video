@@ -37,7 +37,7 @@ export function inferFramingScope(products: ProductMetadata[]): FramingScope {
 export function framingInstruction(scope: FramingScope): string {
   switch (scope) {
     case "full_body":
-      return "Wide full-body shot. The person's ENTIRE body must be visible, from the very top of the head to BELOW the feet. The feet must appear in the LOWER THIRD of the frame, with floor/ground visible beneath them. Do NOT crop at the ankles, knees, or thighs. Vertical 9:16, wide-shot framing.";
+      return "Wide full-body shot with generous margin. The person's ENTIRE body must be visible — from the very top of the head (with at least 5% margin above) to the floor (with feet AND ground visible, at least 5% margin below). Feet must be in the lower third of the frame, fully visible with no cropping. Vertical 9:16 wide-shot composition. The frame must accommodate every garment and accessory — top, bottom, footwear, hands, bags. NO part of any item may be cropped at any edge. If unsure, zoom out further.";
     case "three_quarter":
       return "Three-quarter portrait from head to mid-thigh, with both hands and arms fully visible. Vertical 9:16.";
     case "chest_up":

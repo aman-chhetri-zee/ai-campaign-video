@@ -121,9 +121,9 @@ function buildTier1Prompt(
 
   const secondaryItems =
     secondaryProductDescriptions.length > 0
-      ? `Additional items to also render naturally on Subject [1] alongside Subject [2]: ${secondaryProductDescriptions
-          .map((d) => sanitiseProductDescription(d))
-          .join("; ")}. Render each of these items based on the text description — match the described colors, materials, and style as closely as possible.`
+      ? `Additional items that MUST appear on Subject [1] (in addition to Subject [2]): ` +
+        secondaryProductDescriptions.map((d, i) => `(${i + 1}) ${sanitiseProductDescription(d)}`).join("; ") +
+        `. Render each item with high fidelity to its text description — match colors, materials, silhouette, and style. NONE of these items may be omitted, replaced with a default, or hallucinated. If footwear is mentioned, ensure shoes are clearly visible at the feet. If a bag is mentioned, place it in a hand or on a shoulder.`
       : "";
 
   const sceneRefClause = hasSceneRef
@@ -136,7 +136,7 @@ function buildTier1Prompt(
 
   return (
     // STRICT identity match against master
-    `Subject [1] is the SAME EXACT PERSON shown in the master subject reference image. ` +
+    `Subject [1] is the SAME EXACT PERSON shown in the master subject reference image — render them as if they walked out of that exact photo into the new scene. Do NOT idealize, restyle, or fashion-model-ify them. ` +
     `The keyframe must look like the master subject simply changed clothes — every physical feature must match the master IDENTICALLY: ` +
     `(a) same face shape, jawline, cheekbone structure, eye shape and color, nose shape, lip shape; ` +
     `(b) same skin tone and texture; ` +
