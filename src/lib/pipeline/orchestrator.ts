@@ -209,10 +209,20 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
   const poseArchetype = archetypes[args.look_index % archetypes.length];
   const motionReferenceVideoPath = resolve("public", args.template.video_path);
 
-  // Per-look segment URL — use segment-{segmentIdx}.mp4 instead of full video
+  // Per-look segment URL — use segment-{segmentIdx}.mp4 instead of full video.
+  // Kling motion-control requires reference video >= 3s; fall back to full video
+  // if the computed segment duration is too short.
+  const KLING_MIN_SEGMENT_DURATION_S = 3;
   const segmentPath = args.template.video_path.replace("/video.mp4", "") + `/segment-${segmentIdx}.mp4`;
-  const perLookSegmentUrl = `${VERCEL_DEPLOYMENT_URL}/${segmentPath}`;
-  console.log(`[orchestrator] look ${args.look_index} motion segment: segment-${segmentIdx}.mp4 (${perLookSegmentUrl})`);
+  const usePerLookSegment = segDur >= KLING_MIN_SEGMENT_DURATION_S;
+  const perLookSegmentUrl = usePerLookSegment
+    ? `${VERCEL_DEPLOYMENT_URL}/${segmentPath}`
+    : `${VERCEL_DEPLOYMENT_URL}/${args.template.video_path}`;
+  if (usePerLookSegment) {
+    console.log(`[orchestrator] look ${args.look_index} motion segment: segment-${segmentIdx}.mp4 (${segDur.toFixed(1)}s) → ${perLookSegmentUrl}`);
+  } else {
+    console.log(`[orchestrator] look ${args.look_index} segment too short (${segDur.toFixed(1)}s < ${KLING_MIN_SEGMENT_DURATION_S}s) — using full video as motion reference`);
+  }
 
   let keyframeUrl: string | undefined;
   let motionReferenceUrl: string | undefined;

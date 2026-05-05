@@ -215,6 +215,10 @@ async function tier1Customization(input: {
 
   const token = await getAccessToken();
 
+  const isNonSquareReject = (errText: string) =>
+    errText.includes("more than 2 reference images") ||
+    errText.includes("non-square aspect-ratio");
+
   const makeRequest = (refs: object[]) =>
     withRetry(
       async () => {
@@ -239,17 +243,20 @@ async function tier1Customization(input: {
   try {
     resp = await makeRequest(referenceImages);
   } catch (err) {
-    const msg = (err as Error).message ?? "";
-    if (
-      msg.includes("more than 2 reference images") ||
-      msg.includes("non-square aspect-ratio") ||
-      msg.includes("referenceImages")
-    ) {
+    console.warn("[keyframe][tier1] fetch error:", err);
+    return null;
+  }
+
+  // Handle the "more than 2 reference images for non-square" 400 gracefully —
+  // Imagen returns this as a 400 (not 5xx), so it doesn't get thrown by withRetry.
+  // We detect it here, strip the style ref, and retry with 2 refs.
+  if (!resp.ok) {
+    const errText = await resp.text();
+    if (resp.status === 400 && isNonSquareReject(errText) && input.templateFirstFrame) {
       console.warn(
-        "[keyframe][tier1] 3-ref rejected, retrying with 2 refs (no style anchor):",
-        msg.slice(0, 200),
+        "[keyframe][tier1] 3-ref rejected (non-square limit), retrying with 2 refs (no style anchor):",
+        errText.slice(0, 200),
       );
-      // Strip the style ref (id=3) and retry with face + product only
       const trimmedRefs = referenceImages.filter((r: any) => r.referenceId !== 3);
       try {
         resp = await makeRequest(trimmedRefs);
@@ -257,17 +264,17 @@ async function tier1Customization(input: {
         console.warn("[keyframe][tier1] 2-ref fallback also failed:", err2);
         return null;
       }
+      // Fall through to the normal response handling below with the new resp
+      if (!resp.ok) {
+        const errText2 = await resp.text();
+        console.warn(`[keyframe][tier1] HTTP ${resp.status} (2-ref fallback): ${errText2.slice(0, 400)}`);
+        return null;
+      }
     } else {
-      console.warn("[keyframe][tier1] fetch error:", err);
+      console.warn(`[keyframe][tier1] HTTP ${resp.status}: ${errText.slice(0, 400)}`);
+      // Treat 404 / model-not-found as "tier unavailable" — fall through
       return null;
     }
-  }
-
-  if (!resp.ok) {
-    const errText = await resp.text();
-    console.warn(`[keyframe][tier1] HTTP ${resp.status}: ${errText.slice(0, 400)}`);
-    // Treat 404 / model-not-found as "tier unavailable" — fall through
-    return null;
   }
 
   const data = await resp.json();
