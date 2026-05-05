@@ -445,25 +445,38 @@ export default function VideoPocPage() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {templates.map((t) => (
-              <button
+              <div
                 key={t.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => setTemplateId(t.id)}
-                className={`rounded-xl border-2 p-2 transition-all group ${
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setTemplateId(t.id);
+                  }
+                }}
+                className={`cursor-pointer rounded-xl border-2 p-2 transition-all group focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
                   templateId === t.id
                     ? "border-blue-500 ring-2 ring-blue-500/30"
                     : "border-zinc-800 hover:border-zinc-600"
                 }`}
               >
-                <img
-                  src={t.first_frame_url}
-                  alt={t.id}
-                  className="w-full aspect-[9/16] object-cover rounded-lg"
+                {/* stopPropagation lets the user play the preview without
+                    accidentally selecting/deselecting the template */}
+                <video
+                  src={t.video_url}
+                  poster={t.first_frame_url}
+                  controls
+                  preload="metadata"
+                  playsInline
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full aspect-[9/16] object-cover rounded-lg bg-black"
                 />
                 <div className="mt-2 text-sm font-medium text-zinc-300 text-left">
                   {t.id}
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </section>
