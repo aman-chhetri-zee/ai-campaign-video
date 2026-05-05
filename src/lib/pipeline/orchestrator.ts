@@ -108,6 +108,8 @@ async function processLook(args: {
   faceDescription: string;
   referenceFaceBytes: Buffer;
   referenceFaceMimeType: string;
+  masterSubjectBytes?: Buffer;
+  masterSubjectMimeType?: string;
   look: Look;
   runDir: string;
 }): Promise<{ keyframePath: string; clipPath: string | null; keyframe_url: string; clip_url: string | null }> {
@@ -176,6 +178,9 @@ async function processLook(args: {
     keyframePrompt: prompts.keyframe_prompt,
     templateFirstFrame: { bytes: args.templateFirstFrame, mimeType: "image/png" },
     referenceFace: { bytes: args.referenceFaceBytes, mimeType: args.referenceFaceMimeType },
+    masterSubject: args.masterSubjectBytes && args.masterSubjectMimeType
+      ? { bytes: args.masterSubjectBytes, mimeType: args.masterSubjectMimeType }
+      : undefined,
     products: productImages,
     faceDescription: args.faceDescription,
     framingScope,
@@ -206,6 +211,9 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
       keyframePrompt: retryPrompt,
       templateFirstFrame: { bytes: args.templateFirstFrame, mimeType: "image/png" },
       referenceFace: { bytes: args.referenceFaceBytes, mimeType: args.referenceFaceMimeType },
+      masterSubject: args.masterSubjectBytes && args.masterSubjectMimeType
+        ? { bytes: args.masterSubjectBytes, mimeType: args.masterSubjectMimeType }
+        : undefined,
       products: productImages,
       faceDescription: args.faceDescription,
       framingScope,
@@ -466,7 +474,8 @@ export async function runPipeline(
         let keyframe = await compositeKeyframe({
           keyframePrompt: prompts.keyframe_prompt,
           templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
-          referenceFace: { bytes: anchorFaceBytes, mimeType: anchorFaceMimeType },
+          referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
+          masterSubject: master ? { bytes: master.imageBytes, mimeType: master.mimeType } : undefined,
           products: productImages,
           faceDescription,
           framingScope,
@@ -493,7 +502,8 @@ export async function runPipeline(
           keyframe = await compositeKeyframe({
             keyframePrompt: retryPrompt,
             templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
-            referenceFace: { bytes: anchorFaceBytes, mimeType: anchorFaceMimeType },
+            referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
+            masterSubject: master ? { bytes: master.imageBytes, mimeType: master.mimeType } : undefined,
             products: productImages,
             faceDescription,
             framingScope,
@@ -633,7 +643,8 @@ export async function runPipeline(
         let keyframe = await compositeKeyframe({
           keyframePrompt: prompts.keyframe_prompt,
           templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
-          referenceFace: { bytes: anchorFaceBytes, mimeType: anchorFaceMimeType },
+          referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
+          masterSubject: master ? { bytes: master.imageBytes, mimeType: master.mimeType } : undefined,
           products: productImages,
           faceDescription,
           framingScope,
@@ -660,7 +671,8 @@ export async function runPipeline(
           keyframe = await compositeKeyframe({
             keyframePrompt: retryPrompt,
             templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
-            referenceFace: { bytes: anchorFaceBytes, mimeType: anchorFaceMimeType },
+            referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
+            masterSubject: master ? { bytes: master.imageBytes, mimeType: master.mimeType } : undefined,
             products: productImages,
             faceDescription,
             framingScope,
@@ -805,8 +817,10 @@ export async function runPipeline(
         templateFirstFrame,
         face_metadata: face,
         faceDescription,
-        referenceFaceBytes: anchorFaceBytes,        // CHANGED — was input.referenceFaceBytes
-        referenceFaceMimeType: anchorFaceMimeType,  // CHANGED — was input.referenceFaceMimeType
+        referenceFaceBytes: input.referenceFaceBytes,
+        referenceFaceMimeType: input.referenceFaceMimeType,
+        masterSubjectBytes: master?.imageBytes,
+        masterSubjectMimeType: master?.mimeType,
         look: run.looks[i],
         runDir,
       });

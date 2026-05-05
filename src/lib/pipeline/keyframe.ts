@@ -1,31 +1,25 @@
 // src/lib/pipeline/keyframe.ts
 //
-// Stage 5 — Keyframe Compositing
+// Stage 5 — Keyframe Compositing via Nano Banana Pro (gemini-3-pro-image-preview)
 //
-// Three-tier strategy for true identity preservation:
+// One model, no tiers. Gemini 3 Pro Image is multimodal-native: it reads each
+// reference image as conversational context (not a diffusion feature hint),
+// has no 2-ref cap on 9:16, and actually honors directives like "render this
+// exact person." Replaces the prior Imagen 3 Customization → Imagen Inpaint →
+// Imagen 4.0 text-only fallback chain.
 //
-// Tier 1: Imagen 3 Customization (imagen-3.0-capability-001) with
-//         REFERENCE_TYPE_SUBJECT — ALL looks go through here. Master subject
-//         is visual ref [1]; primary product is visual ref [2] (capped at 2
-//         per Imagen 3 9:16 limit). Secondary products described in text only.
-//         Best identity preservation across single- and multi-product looks.
-//
-// Tier 2: Inpaint on the reference face image (imagen-3.0-generate-001) with
-//         EDIT_MODE_INPAINT_INSERTION — fallback if Tier 1 fails. Preserves
-//         the face exactly because it starts from the actual reference photo.
-//         Scene won't match template perfectly but face is guaranteed.
-//
-// Tier 3: Text-only Imagen 4.0 (legacy, same as d2d36e9) — last resort.
+// Endpoint: aiplatform.googleapis.com (global; no region prefix)
+// Auth: GoogleAuth via GOOGLE_APPLICATION_CREDENTIALS service account.
 
-import { getGenAIClient } from "../genai-client";
 import { GoogleAuth } from "google-auth-library";
 import { framingInstruction, type FramingScope } from "./framing";
 import { withRetry } from "./retry";
 
-const GEMINI_TEXT_MODEL = "gemini-2.5-pro";
 const PROJECT_ID = process.env.GCP_PROJECT_ID || "creatoreconomy-479409";
-const LOCATION = process.env.GCP_LOCATION || "us-central1";
-const TIMEOUT_MS = 120_000;
+const MODEL_ID = "gemini-3-pro-image-preview";
+const LOCATION = "global";
+const HOST = "aiplatform.googleapis.com";
+const TIMEOUT_MS = 180_000; // Nano Banana Pro routinely takes 60s; allow 3 min headroom
 
 export type ImageInput = { bytes: Buffer; mimeType: string };
 export type ProductWithDescription = ImageInput & { description: string };
@@ -40,44 +34,16 @@ function getAuth(): GoogleAuth {
 
 async function getAccessToken(): Promise<string> {
   const auth = getAuth();
-  const authClient = await auth.getClient();
-  const tokenResponse = await authClient.getAccessToken();
-  if (!tokenResponse.token) {
-    throw new Error("keyframe: failed to obtain access token");
-  }
-  return tokenResponse.token;
+  const client = await auth.getClient();
+  const tok = await client.getAccessToken();
+  if (!tok.token) throw new Error("keyframe: failed to obtain access token");
+  return tok.token;
 }
 
-async function fetchWithTimeout(
-  url: string,
-  token: string,
-  body: object,
-): Promise<Response> {
-  const fetchPromise = fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  return Promise.race([
-    fetchPromise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`HTTP request timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
-    ),
-  ]);
+function inlinePart(img: ImageInput) {
+  return { inlineData: { mimeType: img.mimeType, data: img.bytes.toString("base64") } };
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Strip mannequin / styling language that confuses Imagen Customization into
- * rendering a mannequin instead of the reference face subject.
- */
 function sanitiseProductDescription(d: string): string {
   return d
     .replace(/\b(?:on a |displayed on a |styled on a |worn by a )?mannequin\b/gi, "")
@@ -86,448 +52,165 @@ function sanitiseProductDescription(d: string): string {
     .trim();
 }
 
-// ---------------------------------------------------------------------------
-// Tier 1: Imagen 3 Customization with subject reference
-// ---------------------------------------------------------------------------
-
-/**
- * Build the Tier-1 prompt from the input keyframePrompt and product descriptions.
- * We synthesize it programmatically — no extra Gemini call needed.
- * [1] = master subject (face reference), [2] = primary product (visual ref).
- * Secondary products are described in text only (Imagen 3 Customization caps
- * at 2 reference images for 9:16 — face + 1 product).
- */
-function buildTier1Prompt(
-  keyframePrompt: string,
-  primaryProductDescription: string | undefined,
-  secondaryProductDescriptions: string[],
-  framingScope: FramingScope,
-  backgroundDescription?: string,
-  hasSceneRef?: boolean,
+function buildPrompt(
+  args: {
+    keyframePrompt: string;
+    products: ProductWithDescription[];
+    framingScope: FramingScope;
+    backgroundDescription?: string;
+    faceDescription?: string;
+    refOrder: string[]; // labeled image order matching parts array
+  },
 ): string {
-  const base = keyframePrompt
-    .replace(/IMAGE\s+\d+/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-  const framing = framingInstruction(framingScope);
-  const bgClause = backgroundDescription
-    ? `Background: ${backgroundDescription}. The subject is set in this scene.`
+  const base = args.keyframePrompt.replace(/IMAGE\s+\d+/gi, "").replace(/\s{2,}/g, " ").trim();
+  const framing = framingInstruction(args.framingScope);
+  const bgClause = args.backgroundDescription
+    ? `Background: ${args.backgroundDescription}.`
     : "Background: clean neutral solid backdrop.";
 
-  const primaryBinding = primaryProductDescription
-    ? `Subject [2] is ${sanitiseProductDescription(primaryProductDescription)}; render this exact item on Subject [1] with high fidelity to its visual reference.`
-    : "";
+  const refList = args.refOrder
+    .map((label, i) => `Image ${i + 1}: ${label}`)
+    .join("\n");
 
-  const secondaryItems =
-    secondaryProductDescriptions.length > 0
-      ? `Additional items that MUST appear on Subject [1] (in addition to Subject [2]): ` +
-        secondaryProductDescriptions.map((d, i) => `(${i + 1}) ${sanitiseProductDescription(d)}`).join("; ") +
-        `. Render each item with high fidelity to its text description — match colors, materials, silhouette, and style. NONE of these items may be omitted, replaced with a default, or hallucinated. If footwear is mentioned, ensure shoes are clearly visible at the feet. If a bag is mentioned, place it in a hand or on a shoulder.`
-      : "";
+  const productList = args.products
+    .map((p, i) => `(${i + 1}) ${sanitiseProductDescription(p.description)}`)
+    .join("; ");
 
-  const sceneRefClause = hasSceneRef
-    ? `Use the third reference image (style/scene reference) to anchor the architectural scene — match its doorway, door object if visible, walls, floor surfaces, lighting, and spatial perspective. The scene must feel grounded and consistent with the reference, not aesthetically vague. `
-    : "";
-
-  const priorityList = hasSceneRef
-    ? `Identity preservation is the highest priority; primary product visual fidelity is second; scene fidelity (door, architecture, lighting) is third; secondary product fidelity is fourth.`
-    : `Identity preservation is the highest priority; primary product visual fidelity is second; secondary product fidelity is third.`;
-
-  return (
-    // STRICT identity match against master
-    `Subject [1] is the SAME EXACT PERSON shown in the master subject reference image — render them as if they walked out of that exact photo into the new scene. Do NOT idealize, restyle, or fashion-model-ify them. ` +
-    `The keyframe must look like the master subject simply changed clothes — every physical feature must match the master IDENTICALLY: ` +
-    `(a) same face shape, jawline, cheekbone structure, eye shape and color, nose shape, lip shape; ` +
-    `(b) same skin tone and texture; ` +
-    `(c) same hair length, color, texture, parting, and styling; ` +
-    `(d) same body type, weight, build, proportions, and height impression as the master. ` +
-    `Do NOT alter, idealize, slim down, age down, or restyle Subject [1] in any way. ` +
-    `If the master shows a person with average build, the keyframe must show that same average build — do not slim them. ` +
-    `If the master shows long hair, the keyframe must show long hair of the same length. ` +
-    `${framing} ${bgClause} ` +
-    `${sceneRefClause}` +
-    `${primaryBinding} ${secondaryItems} ` +
-    `${base} ` +
-    `All items mentioned above MUST appear in the keyframe — none can be omitted. ` +
-    `Identity match to the master is the absolute highest priority — outranking primary product fidelity, scene fidelity, and secondary product fidelity.`
-  );
+  return [
+    "Generate a single photorealistic fashion keyframe.",
+    "",
+    "REFERENCE IMAGES (in order):",
+    refList,
+    "",
+    "IDENTITY (HIGHEST PRIORITY):",
+    "The subject is the EXACT SAME PERSON shown in Image 1 (and Image 2 if provided). Render them as if they walked out of that photo into the new scene. Do NOT idealize, slim down, age down, or restyle them. Preserve every physical feature identically: face shape, jawline, cheekbone structure, eye shape and color, nose shape and any nose stud, lip shape, skin tone and texture, hair length / color / texture / parting, body type / weight / build / proportions / height impression. If the reference shows a person with average build, render that same average build — do not slim them. If the reference shows long hair, render long hair of the same length.",
+    args.faceDescription ? `Face description: ${args.faceDescription.trim()}` : "",
+    "",
+    "OUTFIT (MUST APPEAR IN FULL):",
+    `The subject is wearing/holding the items shown in the outfit reference images: ${productList}. Every item must be rendered with high fidelity to its visual reference — match colors, materials, silhouette, and style. NONE of these items may be omitted, replaced with a default, or hallucinated. If footwear is among the items, ensure shoes are clearly visible at the feet. If a bag is among the items, place it in a hand or on a shoulder.`,
+    "",
+    "FRAMING:",
+    framing,
+    "",
+    "SCENE:",
+    bgClause,
+    "Use any scene reference image (if present) to anchor the architectural elements, doorway, walls, floor, lighting, and spatial perspective.",
+    "",
+    "ADDITIONAL DIRECTION:",
+    base,
+    "",
+    "Output: a single 9:16 vertical photograph, professional fashion photography quality. Identity match to Image 1 is the absolute highest priority — outranking outfit fidelity and scene fidelity.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-async function tier1Customization(input: {
-  keyframePrompt: string;
-  referenceFace: ImageInput;
-  templateFirstFrame?: ImageInput;
-  products: ProductWithDescription[];
-  faceDescription?: string;
-  framingScope: FramingScope;
-  backgroundDescription?: string;
-}): Promise<{ imageBytes: Buffer; mimeType: string } | null> {
-  const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-capability-001:predict`;
-
-  // Pick the FIRST product as the visual primary; describe the rest in text.
-  // Imagen 3 Customization caps at 2 reference images for 9:16 (face + 1 product).
-  const primary = input.products[0];
-  const secondaries = input.products.slice(1);
-
-  const hasSceneRef = !!input.templateFirstFrame;
-  const prompt = buildTier1Prompt(
-    input.keyframePrompt,
-    primary?.description,
-    secondaries.map((p) => p.description),
-    input.framingScope,
-    input.backgroundDescription,
-    hasSceneRef,
-  );
-  console.log("[keyframe][tier1] prompt:", prompt.slice(0, 300));
-
-  const faceB64 = input.referenceFace.bytes.toString("base64");
-
-  const referenceImages: object[] = [
-    {
-      referenceType: "REFERENCE_TYPE_SUBJECT",
-      referenceId: 1,
-      referenceImage: { bytesBase64Encoded: faceB64 },
-      subjectImageConfig: {
-        subjectDescription: input.faceDescription?.trim() || "person from the master subject reference image",
-        subjectType: "SUBJECT_TYPE_PERSON",
-      },
-    },
-  ];
-
-  if (primary) {
-    referenceImages.push({
-      referenceType: "REFERENCE_TYPE_SUBJECT",
-      referenceId: 2,
-      referenceImage: { bytesBase64Encoded: primary.bytes.toString("base64") },
-      subjectImageConfig: {
-        subjectDescription: sanitiseProductDescription(primary.description),
-        subjectType: "SUBJECT_TYPE_PRODUCT",
-      },
-    });
-  }
-
-  // Add template first_frame as a STYLE/SCENE reference (ref id 3)
-  if (input.templateFirstFrame) {
-    referenceImages.push({
-      referenceType: "REFERENCE_TYPE_STYLE",
-      referenceId: 3,
-      referenceImage: {
-        bytesBase64Encoded: input.templateFirstFrame.bytes.toString("base64"),
-      },
-      styleImageConfig: {
-        styleDescription:
-          "scene composition reference: capture the architectural elements, doorway/door, room layout, lighting, and spatial perspective from this image",
-      },
-    });
-  }
-
-  const token = await getAccessToken();
-
-  const isNonSquareReject = (errText: string) =>
-    errText.includes("more than 2 reference images") ||
-    errText.includes("non-square aspect-ratio");
-
-  const makeRequest = (refs: object[]) =>
-    withRetry(
-      async () => {
-        const r = await fetchWithTimeout(endpoint, token, {
-          instances: [{ prompt, referenceImages: refs }],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: "9:16",
-            personGeneration: "allow_adult",
-            safetySetting: "block_some",
-          },
-        });
-        if (r.status >= 500 && r.status < 600) {
-          throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
-        }
-        return r;
-      },
-      { label: "tier1-customization" },
-    );
-
-  let resp: Response;
-  try {
-    resp = await makeRequest(referenceImages);
-  } catch (err) {
-    console.warn("[keyframe][tier1] fetch error:", err);
-    return null;
-  }
-
-  // Handle the "more than 2 reference images for non-square" 400 gracefully —
-  // Imagen returns this as a 400 (not 5xx), so it doesn't get thrown by withRetry.
-  // We detect it here, strip the style ref, and retry with 2 refs.
-  if (!resp.ok) {
-    const errText = await resp.text();
-    if (resp.status === 400 && isNonSquareReject(errText) && input.templateFirstFrame) {
-      console.warn(
-        "[keyframe][tier1] 3-ref rejected (non-square limit), retrying with 2 refs (no style anchor):",
-        errText.slice(0, 200),
-      );
-      const trimmedRefs = referenceImages.filter((r: any) => r.referenceId !== 3);
-      try {
-        resp = await makeRequest(trimmedRefs);
-      } catch (err2) {
-        console.warn("[keyframe][tier1] 2-ref fallback also failed:", err2);
-        return null;
-      }
-      // Fall through to the normal response handling below with the new resp
-      if (!resp.ok) {
-        const errText2 = await resp.text();
-        console.warn(`[keyframe][tier1] HTTP ${resp.status} (2-ref fallback): ${errText2.slice(0, 400)}`);
-        return null;
-      }
-    } else {
-      console.warn(`[keyframe][tier1] HTTP ${resp.status}: ${errText.slice(0, 400)}`);
-      // Treat 404 / model-not-found as "tier unavailable" — fall through
-      return null;
-    }
-  }
-
-  const data = await resp.json();
-  const b64 = data.predictions?.[0]?.bytesBase64Encoded;
-  if (!b64) {
-    console.warn("[keyframe][tier1] no image in response:", JSON.stringify(data).slice(0, 300));
-    return null;
-  }
-
-  console.log("[keyframe][tier1] SUCCESS");
-  return {
-    imageBytes: Buffer.from(b64, "base64"),
-    mimeType: data.predictions[0].mimeType ?? "image/png",
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Tier 2: Inpaint on the reference face image
-// ---------------------------------------------------------------------------
-
-async function tier2Inpaint(input: {
-  keyframePrompt: string;
-  referenceFace: ImageInput;
-  products: ProductWithDescription[];
-}): Promise<{ imageBytes: Buffer; mimeType: string } | null> {
-  const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-generate-001:predict`;
-
-  const itemsDesc = input.products.map((p) => p.description).join("; ");
-  const inpaintPrompt =
-    `Keep this person's face EXACTLY as-is. ` +
-    `Add the following items to them: ${itemsDesc}. ` +
-    `Vertical 9:16 portrait, fashion photography, dramatic lighting.`;
-
-  console.log("[keyframe][tier2] inpaint prompt:", inpaintPrompt.slice(0, 300));
-
-  const faceB64 = input.referenceFace.bytes.toString("base64");
-  const token = await getAccessToken();
-
-  let resp: Response;
-  try {
-    resp = await withRetry(
-      async () => {
-        const r = await fetchWithTimeout(endpoint, token, {
-          instances: [
-            {
-              prompt: inpaintPrompt,
-              image: { bytesBase64Encoded: faceB64 },
-              maskMode: "MASK_MODE_AUTOMATIC",
-            },
-          ],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: "9:16",
-            personGeneration: "allow_adult",
-            safetySetting: "block_some",
-            editMode: "EDIT_MODE_INPAINT_INSERTION",
-          },
-        });
-        if (r.status >= 500 && r.status < 600) {
-          throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
-        }
-        return r;
-      },
-      { label: "tier2-inpaint" },
-    );
-  } catch (err) {
-    console.warn("[keyframe][tier2] fetch error:", err);
-    return null;
-  }
-
-  if (!resp.ok) {
-    const errText = await resp.text();
-    console.warn(`[keyframe][tier2] HTTP ${resp.status}: ${errText.slice(0, 400)}`);
-    return null;
-  }
-
-  const data = await resp.json();
-  const b64 = data.predictions?.[0]?.bytesBase64Encoded;
-  if (!b64) {
-    console.warn("[keyframe][tier2] no image in response:", JSON.stringify(data).slice(0, 300));
-    return null;
-  }
-
-  console.log("[keyframe][tier2] SUCCESS");
-  return {
-    imageBytes: Buffer.from(b64, "base64"),
-    mimeType: data.predictions[0].mimeType ?? "image/png",
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Tier 3: Legacy text-only path (Gemini prompt → Imagen 4.0)
-// ---------------------------------------------------------------------------
-
-async function buildImagenPromptLegacy(input: {
-  keyframePrompt: string;
-  templateFirstFrame: ImageInput;
-  referenceFace: ImageInput;
-  products: ProductWithDescription[];
-}): Promise<string> {
-  const ai = getGenAIClient();
-
-  const itemsDesc = input.products.map((p) => p.description).join("; ");
-  const systemInstruction = [
-    "You are generating a single Imagen text-to-image prompt.",
-    "Combine the following three inputs into one concise prompt (under 250 words):",
-    "1. Replicate the EXACT scene, pose, background, lighting, and framing from IMAGE 1 (scene reference).",
-    "2. Describe the EXACT facial features from IMAGE 2 (face reference): skin tone, hair colour/length/texture, face shape, eye shape, nose, lips, and any distinctive features such as nose studs or moles.",
-    `3. The person is naturally wearing/holding all items shown across IMAGE 3+ — specifically: ${itemsDesc}.`,
-    "Begin the prompt with 'Professional fashion photograph,' and output ONLY the prompt text — no headers, no explanation.",
-  ].join(" ");
-
-  const parts: any[] = [
-    { text: systemInstruction },
-    { inlineData: { mimeType: input.templateFirstFrame.mimeType, data: input.templateFirstFrame.bytes.toString("base64") } },
-    { inlineData: { mimeType: input.referenceFace.mimeType, data: input.referenceFace.bytes.toString("base64") } },
-    ...input.products.map((p) => ({
-      inlineData: { mimeType: p.mimeType, data: p.bytes.toString("base64") },
-    })),
-  ];
-
-  const response = await withRetry(
-    () =>
-      Promise.race([
-        ai.models.generateContent({
-          model: GEMINI_TEXT_MODEL,
-          contents: [{ role: "user", parts }],
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("keyframe tier3 stage-A timeout")), TIMEOUT_MS),
-        ),
-      ]),
-    { label: "tier3-stage-a-prompt" },
-  );
-
-  const text = (response as any).text ?? "";
-  if (!text.trim()) {
-    throw new Error("keyframe tier3 stage-A: Gemini returned empty prompt");
-  }
-
-  console.log("[keyframe][tier3] generated Imagen prompt:", text.trim().slice(0, 300));
-  return text.trim();
-}
-
-async function tier3TextOnly(input: {
-  keyframePrompt: string;
-  templateFirstFrame: ImageInput;
-  referenceFace: ImageInput;
-  products: ProductWithDescription[];
-}): Promise<{ imageBytes: Buffer; mimeType: string }> {
-  const imagenPrompt = await buildImagenPromptLegacy(input);
-
-  const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-4.0-generate-001:predict`;
-  const token = await getAccessToken();
-
-  const resp = await withRetry(
-    async () => {
-      const r = await fetchWithTimeout(endpoint, token, {
-        instances: [{ prompt: imagenPrompt }],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: "9:16",
-          personGeneration: "allow_adult",
-          safetySetting: "block_some",
-        },
-      });
-      if (r.status >= 500 && r.status < 600) {
-        throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
-      }
-      return r;
-    },
-    { label: "tier3-stage-b-imagen" },
-  );
-
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`keyframe tier3: Imagen returned ${resp.status}: ${errText.slice(0, 300)}`);
-  }
-
-  const data = await resp.json();
-  const b64 = data.predictions?.[0]?.bytesBase64Encoded;
-  if (!b64) {
-    throw new Error(`keyframe tier3: no image in response. Keys: ${Object.keys(data).join(", ")}`);
-  }
-
-  console.log("[keyframe][tier3] SUCCESS");
-  return {
-    imageBytes: Buffer.from(b64, "base64"),
-    mimeType: data.predictions[0].mimeType ?? "image/png",
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-/**
- * Composite a keyframe from template first frame + reference face + product
- * images. Uses a three-tier strategy to maximise identity preservation.
- *
- * ALL looks — single-product and multi-product — now route through Tier 1
- * first. Tier 1 uses the master subject as visual reference [1] and only the
- * FIRST product as visual reference [2] (respecting Imagen 3 Customization's
- * 2-image cap for 9:16). Secondary products are described in text within the
- * prompt. Falls back to Tier 2 → Tier 3 only on genuine API failure.
- */
 export async function compositeKeyframe(input: {
   keyframePrompt: string;
   templateFirstFrame: ImageInput;
-  referenceFace: ImageInput;
+  referenceFace: ImageInput;            // primary identity anchor (real photo or master)
+  masterSubject?: ImageInput;           // secondary body/pose anchor (master subject)
   products: ProductWithDescription[];
-  faceDescription?: string;            // short description for identity anchoring
-  framingScope?: FramingScope;         // controls framing instruction in Tier 1
-  backgroundDescription?: string;      // background scene for Tier 1 prompt
+  faceDescription?: string;
+  framingScope?: FramingScope;
+  backgroundDescription?: string;
 }): Promise<{ imageBytes: Buffer; mimeType: string }> {
-  console.log(`[keyframe] ${input.products.length}-product look — Tier 1 with master + primary product as visual refs`);
+  const framingScope = input.framingScope ?? "chest_up";
 
-  const tier1Result = await tier1Customization({
+  // Build the reference image order: face → master → scene → products
+  const parts: object[] = [];
+  const refOrder: string[] = [];
+
+  parts.push(inlinePart(input.referenceFace));
+  refOrder.push("primary identity reference (the EXACT person to render)");
+
+  if (input.masterSubject) {
+    parts.push(inlinePart(input.masterSubject));
+    refOrder.push("secondary body/pose anchor (same person, full-body canonical view)");
+  }
+
+  parts.push(inlinePart(input.templateFirstFrame));
+  refOrder.push("scene reference (target architectural setting and lighting)");
+
+  for (let i = 0; i < input.products.length; i++) {
+    parts.push(inlinePart(input.products[i]));
+    refOrder.push(`outfit item ${i + 1}: ${sanitiseProductDescription(input.products[i].description).slice(0, 80)}`);
+  }
+
+  const prompt = buildPrompt({
     keyframePrompt: input.keyframePrompt,
-    referenceFace: input.referenceFace,
-    templateFirstFrame: input.templateFirstFrame,
     products: input.products,
-    faceDescription: input.faceDescription,
-    framingScope: input.framingScope ?? "chest_up",
+    framingScope,
     backgroundDescription: input.backgroundDescription,
+    faceDescription: input.faceDescription,
+    refOrder,
   });
-  if (tier1Result) {
-    console.log(`[keyframe] Tier 1 done — ${tier1Result.imageBytes.length} bytes, ${tier1Result.mimeType}`);
-    return tier1Result;
+
+  console.log(
+    `[keyframe] Nano Banana Pro — ${input.products.length}-product look, ${parts.length} ref images`,
+  );
+  console.log(`[keyframe] prompt:`, prompt.slice(0, 400).replace(/\n/g, " "));
+
+  const endpoint = `https://${HOST}/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${MODEL_ID}:generateContent`;
+
+  const body = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }, ...parts],
+      },
+    ],
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+      imageConfig: { aspectRatio: "9:16" },
+    },
+  };
+
+  const resp = await withRetry(
+    async () => {
+      const token = await getAccessToken();
+      const fetchPromise = fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const r = await Promise.race([
+        fetchPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`HTTP request timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
+        ),
+      ]);
+      if (r.status >= 500 && r.status < 600) {
+        throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 300)}`);
+      }
+      return r;
+    },
+    { label: "keyframe-nano-banana-pro" },
+  );
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(
+      `[keyframe] Nano Banana Pro HTTP ${resp.status}: ${errText.slice(0, 400)}`,
+    );
   }
 
-  console.log("[keyframe] Tier 1 unavailable — trying Tier 2 — Inpaint...");
-  const tier2Result = await tier2Inpaint({
-    keyframePrompt: input.keyframePrompt,
-    referenceFace: input.referenceFace,
-    products: input.products,
-  });
-  if (tier2Result) {
-    console.log(`[keyframe] Tier 2 done — ${tier2Result.imageBytes.length} bytes, ${tier2Result.mimeType}`);
-    return tier2Result;
+  const data = await resp.json();
+  const candidate = data.candidates?.[0];
+  const imagePart = candidate?.content?.parts?.find(
+    (p: any) => p.inlineData?.data,
+  );
+
+  if (!imagePart) {
+    const finishReason = candidate?.finishReason ?? "unknown";
+    const textPart = candidate?.content?.parts?.find((p: any) => p.text)?.text;
+    throw new Error(
+      `[keyframe] Nano Banana Pro returned no image (finishReason=${finishReason}): ${textPart?.slice(0, 200) ?? JSON.stringify(data).slice(0, 300)}`,
+    );
   }
 
-  console.log("[keyframe] falling back to Tier 3 (final attempt)...");
-  const tier3Result = await tier3TextOnly(input);
-  console.log(`[keyframe] Tier 3 done — ${tier3Result.imageBytes.length} bytes, ${tier3Result.mimeType}`);
-  return tier3Result;
+  const imageBytes = Buffer.from(imagePart.inlineData.data, "base64");
+  const mimeType = imagePart.inlineData.mimeType ?? "image/png";
+  console.log(`[keyframe] Nano Banana Pro SUCCESS — ${imageBytes.length} bytes, ${mimeType}`);
+  return { imageBytes, mimeType };
 }
