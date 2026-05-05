@@ -9,11 +9,10 @@ import { framingInstruction } from "./pipeline/framing";
 
 export const TEMPLATE_ANALYSIS_PROMPT = `
 You are analyzing a short reference video that will guide AI video generation.
-Extract objective motion AND visual style information.
+Extract richly detailed, objective motion and composition information.
 
 CONSTRAINTS:
 - motion_script must cover the full duration with no time gaps
-- each action must be a single, concrete physical action a video model can replicate
 - DO NOT describe subject identity (face, ethnicity, clothing) — identity will be replaced
 - DO NOT name brands/products visible in the video — products will be inserted fresh
 - DO extract STYLE: lens type (e.g., "fisheye distortion", "natural 50mm"), color treatment
@@ -24,12 +23,21 @@ CONSTRAINTS:
   video (e.g., "playful", "cool", "cute", "surprised", "stylish", "confident", "dramatic")
 - DO extract overall ENERGY in one short phrase (e.g., "high-energy fast-cut montage",
   "slow cinematic", "playful and punchy")
-- DO extract SHOT BACKGROUNDS — a list of distinct background settings used across the
-  video's shots, in the order they appear (e.g., ["modern interior doorway, bright
-  natural daylight outside, hardwood floor", "outdoor walkway in front of a modern
-  house, late-afternoon sun, manicured lawn"]). One entry per visually distinct
-  background. Aim for 2-6 entries. If the entire video shares ONE background, return
-  a one-element array.
+- DO extract distinct SHOT BACKGROUNDS in order
+
+For each motion_script entry, provide a RICH, DETAILED action description (60–150 words)
+covering:
+  • Body movement (where each limb is moving, posture, weight shift, foot placement)
+  • Specific gestures (hand reaching, fingers spread, head turn direction, eye direction)
+  • Facial expression and mood within the shot (smile starts, eyebrow raise, lip purse)
+  • Camera framing (medium-wide, chest-up, low-angle, etc.) and any camera movement
+    within the shot (push-in, pan-left, handheld jitter, static)
+  • Spatial context (interacting with what — door, mirror, ground; entering/exiting frame)
+  • Pacing within the shot (slow deliberate, quick spin, snap to pose)
+  • Transition style going OUT of this shot if a cut follows (hard jump cut, fade, none)
+
+Aim for vivid, instruction-grade detail — what a video model would need to recreate the
+exact motion and feel of this shot. Do NOT describe the subject's appearance.
 
 OUTPUT: strict JSON matching the response_schema.
 `.trim();

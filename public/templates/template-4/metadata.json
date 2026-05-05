@@ -1,47 +1,52 @@
 {
-  "scene_description": "A person stands against a plain, solid-colored background, smiling and posing playfully for the camera in a studio setting.",
+  "scene_description": "A person in a studio setting with a plain beige background performs a series of simple, playful poses and movements for the camera.",
   "subject": {
-    "rough_pose": "standing",
-    "framing": "full-body",
-    "lighting": "soft frontal lighting"
+    "rough_pose": "Standing, shifting weight, turning, and performing a low kick.",
+    "framing": "Full body",
+    "lighting": "Soft, even, frontal studio lighting."
   },
   "motion_script": [
     {
       "t_start": 0,
-      "t_end": 1.5,
-      "action": "Stands facing camera, smiles, then turns body slightly to the left while looking at camera."
+      "t_end": 1.25,
+      "action": "The video opens on a static, full-body shot of a person standing, facing the camera directly. Their feet are shoulder-width apart, and their weight appears evenly distributed. Their arms are relaxed at their sides, with hands slightly behind their hips, out of direct view. They have a bright, wide smile, showing teeth, and their eyes are looking directly into the lens, conveying a sense of warmth and confidence. The posture is upright but relaxed. The scene is evenly lit with soft light, casting minimal shadows against the plain beige background. The shot transitions with a hard cut into the next motion."
     },
     {
-      "t_start": 1.5,
-      "t_end": 3,
-      "action": "Turns body back to face forward, continuing to smile."
+      "t_start": 1.25,
+      "t_end": 2.5,
+      "action": "Following a hard cut, the subject is now seen in a three-quarter turn pose. Their feet remain in a similar position, but their hips and torso have rotated approximately 45 degrees to their right (camera left). Their head is turned back towards the camera, looking over their left shoulder with the same engaging, open-mouthed smile. Their right arm hangs loosely by their side, while the left arm is slightly bent at the elbow. The camera remains static in a full-body frame, maintaining the same distance and angle. This quick pivot and hold create a dynamic yet poised feeling, transitioning seamlessly into the next pose with another hard cut."
     },
     {
-      "t_start": 3,
-      "t_end": 5.5,
-      "action": "Shifts weight, tilts head up, and playfully kicks left leg forward."
+      "t_start": 2.5,
+      "t_end": 3.75,
+      "action": "The scene cuts back to a frontal view, but with a new pose. The subject's head is tilted slightly up and to their right, projecting a joyful and carefree expression. Their smile is still broad and genuine. Their weight has shifted primarily onto their right leg, causing their right hip to jut out slightly. The left leg is relaxed with a bent knee. The camera angle seems slightly lower, emphasizing the upward tilt of the head and giving the pose a more dynamic feel. The arms remain relaxed at their sides. This shot conveys a feeling of spontaneous happiness and ease before transitioning to the next action with a hard cut."
     },
     {
-      "t_start": 5.5,
+      "t_start": 3.75,
+      "t_end": 5,
+      "action": "In this segment, the subject executes a playful, low kick. Shifting all their weight onto their right leg, they lift their left leg straight out in front of them, about a foot off the ground, with the foot flexed. The movement is smooth and controlled. To counterbalance, their upper body leans back slightly. They maintain the joyful, smiling expression, looking straight at the camera. The arms stay relaxed at the sides, contributing to the overall sense of effortless fun. The static, full-body camera framing captures the entire motion clearly. The shot concludes with the leg at its peak height before another hard cut."
+    },
+    {
+      "t_start": 5,
       "t_end": 7,
-      "action": "Lowers leg and turns body to the left again, smiling at the camera."
+      "action": "For the final shot, the subject returns to a three-quarter turn pose, mirroring the earlier one but with a subtle difference. After the kick, they've planted their left foot and pivoted their body to their right (camera left). Their head is turned back towards the camera, looking over their left shoulder with a confident smile. Their weight is mostly on their back (right) foot. The left arm hangs naturally, while the right arm is slightly behind them. This pose is held for a moment, a static and composed end to the series of playful movements. The camera remains in its static full-body position, and the video ends on this held pose."
     }
   ],
-  "composition_notes": "Static camera, full-body shot with the subject centered against a plain, solid-color backdrop. There is ample headroom and space below the feet.",
+  "composition_notes": "The composition is clean and minimalist, with a single subject centered in the frame against a solid, neutral-colored background. This isolates the subject and places all focus on their poses, movements, and joyful expression. The camera is static throughout.",
   "style": {
-    "lens": "natural 50mm",
-    "color_treatment": "soft pastels with a warm, creamy undertone",
-    "lighting_effects": "flat, soft, diffuse front lighting",
+    "lens": "Natural 50mm",
+    "color_treatment": "Soft, neutral tones with natural skin representation.",
+    "lighting_effects": "Even, soft front lighting",
     "special_effects": []
   },
   "pose_archetypes": [
-    "happy",
+    "joyful",
+    "confident",
     "playful",
-    "casual",
-    "confident"
+    "relaxed"
   ],
-  "energy": "calm and cheerfully playful",
+  "energy": "Lighthearted and cheerful",
   "shot_backgrounds": [
-    "A seamless, solid-color studio backdrop in a light beige or tan color."
+    "Plain beige studio backdrop"
   ]
 }

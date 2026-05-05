@@ -1,47 +1,43 @@
 {
-  "scene_description": "A person with a gothic aesthetic poses against a pillar, walks towards the camera, and strikes several poses in front of a brick building with large wooden doors.",
+  "scene_description": "A subject performs a slow, deliberate walk and a series of poses for the camera while standing in an outdoor stone portico.",
   "subject": {
-    "rough_pose": "standing, walking, posing",
-    "framing": "full-body shot",
-    "lighting": "natural diffused daylight"
+    "rough_pose": "Standing, walking, posing",
+    "framing": "Full shot to Medium shot",
+    "lighting": "Natural, soft, overcast daylight"
   },
   "motion_script": [
     {
       "t_start": 0,
-      "t_end": 2,
-      "action": "Subject stands still, leaning against a stone pillar, looking at the camera."
+      "t_end": 2.2,
+      "action": "The shot opens on a static, full-body view of a subject leaning with their left shoulder against a large stone pillar. Their feet are together, and their hands are clasped low in front of their waist, holding a bag strap. Their gaze is directed at the camera with a neutral expression. After a moment, they push off the pillar, shifting their weight forward. As they do, their hands unclasp, and their arms drop to their sides. They take a deliberate first step forward with their left foot, initiating a walk towards the camera. The movement is smooth and controlled, transitioning from a static pose to forward motion."
     },
     {
-      "t_start": 2,
+      "t_start": 2.2,
       "t_end": 6.5,
-      "action": "Subject walks slowly and deliberately towards the camera."
+      "action": "Continuing from the first step, the subject walks directly towards the static camera. The framing naturally tightens from a full shot to a medium-wide, knees-up shot. Their walk is a slow, confident strut with a subtle hip sway. Their arms swing minimally by their sides. The head remains level, and their gaze is consistently locked on the camera lens with a composed, serious expression. As they get closer, their head tilts slightly to the right. The pacing is unhurried and rhythmic, emphasizing a catwalk-like presentation. The subject's movement fills the frame as they approach."
     },
     {
       "t_start": 6.5,
-      "t_end": 8.5,
-      "action": "Subject stops, runs both hands through their hair, and looks up and to the right."
-    },
-    {
-      "t_start": 8.5,
-      "t_end": 11.5,
-      "action": "Subject turns their body to their left profile, poses, then glances over their shoulder at the camera with a slight smile."
+      "t_end": 9.5,
+      "action": "The subject's walk slows to a halt a few feet from the camera, now framed from the waist up. They bring both hands up, palms facing inward, and run their fingers through their hair on both sides of their head in a quick, fluid gesture. After dropping their hands back to their sides, their gaze shifts upwards and to their right. They then pivot their entire upper body and head about 90 degrees to their left, ending in a three-quarter profile pose that highlights the accessory on their left hip. Their weight is on their back (right) foot, with the left foot forward. The expression remains poised and aloof as the video ends."
     }
   ],
-  "composition_notes": "The shot is static, maintaining a centered, full-body composition of the subject. The background architecture provides strong vertical lines that frame the subject.",
+  "composition_notes": "The shot is static and symmetrical, with the subject starting near a pillar on the right side of the frame and walking down the center of a portico. The background consists of strong vertical lines from pillars and a door, with horizontal lines from the brick wall and steps, creating a structured, architectural composition.",
   "style": {
-    "lens": "natural 50mm",
-    "color_treatment": "natural and realistic with slightly muted tones",
-    "lighting_effects": "soft, even daylight",
+    "lens": "Natural 35mm",
+    "color_treatment": "Natural and slightly desaturated with cool undertones",
+    "lighting_effects": "Soft, diffused daylight with no harsh shadows",
     "special_effects": []
   },
   "pose_archetypes": [
     "confident",
     "poised",
     "stylish",
-    "dramatic"
+    "gothic",
+    "aloof"
   ],
-  "energy": "slow and confident posing",
+  "energy": "Slow and confident strut",
   "shot_backgrounds": [
-    "An outdoor covered walkway with large stone pillars, a red brick building wall, and tall wooden doors on a grey tiled floor."
+    "An outdoor stone portico with large wooden doors, concrete pillars, and a red brick wall."
   ]
 }

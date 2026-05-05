@@ -1,65 +1,46 @@
 {
-  "scene_description": "A woman stands in a brightly lit, modern apartment and does a quick outfit reveal. She first shows the outfit on a hanger, and then after a jump cut, she is wearing it and strikes a few poses.",
+  "scene_description": "A person shows off an outfit on a hanger, then does a jump-cut transition to wearing the outfit, expressing surprise at the fit. A final jump-cut reveals the full look with colorful accessories, and the person strikes a confident pose.",
   "subject": {
-    "rough_pose": "standing",
-    "framing": "medium shot",
-    "lighting": "bright, natural daylight from the side"
+    "rough_pose": "Standing, facing camera",
+    "framing": "Medium shot, full shot",
+    "lighting": "Natural, bright, indoor window light"
   },
   "motion_script": [
     {
       "t_start": 0,
-      "t_end": 2.6,
-      "action": "A person stands facing the camera, holding an outfit on a hanger, smiling and talking."
+      "t_end": 2.8,
+      "action": "A subject stands in a medium shot, framed from the thighs up, facing the camera. They hold a clothing hanger at chest height with both hands, displaying an outfit. Their expression is excited and engaging, with an open-mouthed smile as they speak. Their head is tilted slightly to their left. The body posture is relaxed and stationary, with only minor swaying. The camera is static and positioned at eye level. The background is a brightly lit, modern apartment with light wood floors and cabinets. Soft, natural light emanates from the right side of the frame, illuminating the subject. The scene ends with a sharp jump cut."
     },
     {
-      "t_start": 2.6,
-      "t_end": 3.2,
-      "action": "A jump cut transition occurs."
+      "t_start": 2.8,
+      "t_end": 6.9,
+      "action": "Following a jump cut, the subject now wears the outfit from the previous shot, maintaining the same static, medium framing. Initially, their arms are slightly raised and bent, palms up in a 'ta-da' gesture. They glance down at the outfit, their expression shifting to surprised delight. They then lower their hands to their waist, smoothing the front of the top with both palms. Looking back up at the camera, their eyes are wide and their mouth forms a small 'o' of pleasant surprise, as if reacting to the fit. The camera remains completely still, holding this reaction shot before another jump cut occurs."
     },
     {
-      "t_start": 3.2,
-      "t_end": 5,
-      "action": "The person, now wearing the outfit, gestures with open hands and then places them on their waist in a surprised expression."
-    },
-    {
-      "t_start": 5,
-      "t_end": 6.8,
-      "action": "The person smooths the front of their top while looking down and then back at the camera."
-    },
-    {
-      "t_start": 6.8,
-      "t_end": 7.5,
-      "action": "The person turns to their right to show their side profile to the camera."
-    },
-    {
-      "t_start": 7.5,
-      "t_end": 8.6,
-      "action": "The person turns back to face the camera, arms slightly outstretched."
-    },
-    {
-      "t_start": 8.6,
-      "t_end": 10,
-      "action": "The person places their left hand on their hip, posing for the camera."
+      "t_start": 6.9,
+      "t_end": 10.3,
+      "action": "After a final jump cut, the scene is now a full-length shot, revealing the subject wearing additional colorful accessories. The shot begins as they complete a quick, subtle turn from the right, settling their weight on their left leg. They strike a confident pose, placing their right hand firmly on their hip with the elbow bent outwards. Their left arm hangs relaxed at their side. Their body is angled slightly away from the camera, but their head is turned to face forward. Wearing sunglasses, they hold a cool, assured expression with a neutral mouth, looking directly into the static camera. The shot remains on this stylish, poised stance until the end of the video."
     }
   ],
-  "composition_notes": "The shot is static from a fixed camera, likely on a tripod. The composition is centered on the subject. A single jump cut is used for the outfit change transition.",
+  "composition_notes": "The video uses a series of static, centered shots with jump cuts for transitions. The framing moves from medium to full to showcase the outfit progression. The background remains consistent, featuring a clean, modern apartment interior with a large arched mirror that adds a sense of space.",
   "style": {
-    "lens": "natural 35-50mm equivalent",
-    "color_treatment": "natural and bright with warm tones",
-    "lighting_effects": "bright, natural window light from the right side",
+    "lens": "natural 35mm-50mm equivalent",
+    "color_treatment": "Clean and bright with natural tones",
+    "lighting_effects": "Soft, diffused natural window light from the side",
     "special_effects": [
-      "jump cut"
+      "jump cuts"
     ]
   },
   "pose_archetypes": [
-    "enthusiastic",
+    "excited",
+    "presenting",
     "surprised",
     "pleased",
-    "stylish",
-    "confident"
+    "confident",
+    "stylish"
   ],
-  "energy": "upbeat and quick try-on reveal",
+  "energy": "Upbeat try-on reveal",
   "shot_backgrounds": [
-    "modern apartment interior with light wood floors, neutral-colored cabinets in the background, and a large arched floor mirror."
+    "Modern apartment interior with light wood floors, neutral cabinets, and a large arched mirror."
   ]
 }

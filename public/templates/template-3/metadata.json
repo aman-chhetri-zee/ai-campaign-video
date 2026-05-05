@@ -1,65 +1,42 @@
 {
-  "scene_description": "A person models an outfit in a studio setting. They walk into the frame, stop at the center, and strike a series of poses, including lifting each leg to look at their shoes.",
+  "scene_description": "A subject performs a model walk and a series of poses in a studio with a plain grey seamless backdrop. The shot is a static, full-body vertical frame.",
   "subject": {
-    "rough_pose": "Standing",
-    "framing": "Full shot",
-    "lighting": "Soft frontal lighting"
+    "rough_pose": "Standing, walking, posing",
+    "framing": "Full-body shot",
+    "lighting": "Soft, even studio lighting from the front"
   },
   "motion_script": [
     {
       "t_start": 0,
       "t_end": 3.5,
-      "action": "A person walks from screen left to the center, turning to face the camera as they stop."
+      "action": "From an empty frame, the subject enters from the far left, captured in a full-body vertical shot. They walk with a confident stride towards the center-right of the frame, their body initially in profile. The left arm, carrying a small accessory, is held close, while the right arm swings naturally. Around the 1-second mark, as they approach the center, they begin a smooth turn, rotating their torso and head to face the camera directly. Their eyes lock onto the lens with a neutral, focused expression. The walk transitions into a series of smaller, settling steps as they find their final mark in the center of the frame, feet slightly apart, ready to pose. The camera remains completely static throughout this entrance."
     },
     {
       "t_start": 3.5,
       "t_end": 8.5,
-      "action": "The person stands still, posing and looking directly into the camera."
+      "action": "The subject holds a static pose in the center of the full-body frame, facing the camera. Their posture is poised, with weight distributed evenly on both feet which are positioned slightly apart. The right arm hangs relaxed at their side, while the left hand holds a small accessory, also hanging naturally. Their facial expression is serious and unwavering, maintaining direct eye contact with the lens, with lips closed in a neutral line. Over this extended duration, the only perceptible motion is a gentle sway of their hair, indicating a light breeze in the studio. This deliberate stillness creates a moment of direct, sustained connection with the viewer, emphasizing form and presence. The camera is fixed, providing a stable, uninterrupted view of the subject."
     },
     {
       "t_start": 8.5,
-      "t_end": 11.5,
-      "action": "The person lifts their right leg, knee bent, looks down, and touches their shoe with their right hand."
-    },
-    {
-      "t_start": 11.5,
-      "t_end": 13.5,
-      "action": "While holding the pose, the person looks up at the camera, then lowers their leg."
-    },
-    {
-      "t_start": 13.5,
-      "t_end": 17.5,
-      "action": "The person lifts their left leg, knee bent, leans down, and touches their shoe with their left hand."
-    },
-    {
-      "t_start": 17.5,
-      "t_end": 18.5,
-      "action": "While holding the pose, the person looks up at the camera."
-    },
-    {
-      "t_start": 18.5,
-      "t_end": 20,
-      "action": "The person lowers their leg and poses with their left hand on their hip."
+      "t_end": 9.5,
+      "action": "Breaking the stillness, the subject performs a quick, dynamic pose. Shifting all their weight onto their left leg, they lift their right leg, bending it sharply at the knee and kicking the heel up and back in a playful flourish. This movement causes their upper body to tilt slightly forward and to the right for counterbalance. Simultaneously, their head tilts down and to the left, their gaze dropping from the camera to a point on the floor. The left arm holding the accessory remains relatively stable, acting as an anchor, while the right arm moves slightly away from the body to aid balance. The entire gesture is a swift, elegant accent before the clip ends. The camera remains static."
     }
   ],
-  "composition_notes": "The shot is a static, continuous take. The camera is stationary and positioned at the subject's eye level. The vertical framing keeps the subject centered, emphasizing the full-body view.",
+  "composition_notes": "The composition is minimalist and centered, with a single subject against a neutral grey background. The vertical 9:16 aspect ratio emphasizes the subject's full figure and movements. There are no distracting elements in the frame.",
   "style": {
     "lens": "Natural 50mm",
-    "color_treatment": "Natural, with slightly cool and desaturated tones",
-    "lighting_effects": "Even, diffuse studio lighting creating soft, minimal shadows",
-    "special_effects": [
-      "Gentle wind effect on hair"
-    ]
+    "color_treatment": "Natural and clean",
+    "lighting_effects": "Flat, even studio lighting",
+    "special_effects": []
   },
   "pose_archetypes": [
-    "Confident",
-    "Poised",
-    "Stylish",
-    "Neutral",
-    "Cool"
+    "confident",
+    "composed",
+    "stylish",
+    "neutral"
   ],
-  "energy": "Calm studio fashion lookbook",
+  "energy": "Slow and deliberate model test",
   "shot_backgrounds": [
-    "Photo studio with a seamless grey paper backdrop and a concrete floor."
+    "Plain grey studio seamless paper backdrop"
   ]
 }

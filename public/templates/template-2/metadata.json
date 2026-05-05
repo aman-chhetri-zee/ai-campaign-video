@@ -1,58 +1,53 @@
 {
-  "scene_description": "A quick-cut montage of a woman transitioning between different outfits. The first part shows her walking through a doorway in three different styles. The second part shows her walking confidently outdoors and playfully spinning for the camera.",
+  "scene_description": "A person transitions through three different outfits for various occasions—office, workout, and going out—using a single doorway as a framing device. The sequence uses quick jump cuts for each outfit change, culminating in a final, energetic outdoor shot of the person walking and spinning happily.",
   "subject": {
-    "rough_pose": "standing, walking, turning",
-    "framing": "medium long shot, medium shot",
-    "lighting": "soft, diffuse natural light"
+    "rough_pose": "Standing and walking",
+    "framing": "Medium-full shot to medium close-up",
+    "lighting": "Soft, natural daylight"
   },
   "motion_script": [
     {
       "t_start": 0,
-      "t_end": 1.8,
-      "action": "A woman walks forward through an open doorway, looking to her left and then forward."
+      "t_end": 1.5,
+      "action": "A static, medium-full shot from a slightly low angle shows a person stepping out through a large, open wooden doorway. They lead with their left foot, their body angled slightly toward the camera's right. Their left arm is bent, with the hand near their waist, while their right arm is down. They carry a bag on their right shoulder. As they step forward, they look up and to their left with a calm, observant expression. Their weight shifts confidently onto their front foot as they move from the interior space to the exterior entryway. The camera remains completely still, creating a stable frame for the action. The shot ends with a hard jump cut."
     },
     {
-      "t_start": 1.8,
-      "t_end": 3.5,
-      "action": "Match cut to the woman continuing the same forward walking motion through the doorway."
+      "t_start": 1.5,
+      "t_end": 3.8,
+      "action": "Following a jump cut, the scene resets to the same static medium-full shot. The person, now in a different outfit, is again stepping through the doorway. They hold a water bottle in their left hand and have a jacket draped over their right shoulder, held in place by their right hand. They move with an athletic and purposeful stride, looking up and to their left with a small, determined smile. The pace of their walk is steady as they clear the doorway and continue moving slightly toward the camera. The interior behind them remains visible, connecting the sequence. The shot transitions out with another hard jump cut."
     },
     {
-      "t_start": 3.5,
-      "t_end": 5,
-      "action": "Match cut to the woman completing the walk through the doorway and turning to close the door behind her."
+      "t_start": 3.8,
+      "t_end": 5.8,
+      "action": "Another jump cut returns to the same static medium-full shot. In a third outfit, the person steps through the doorway, a bag slung over their right shoulder. Just as they clear the threshold, they execute a quick, smooth pivot on their right foot, turning their back partially to the camera. They glance back over their left shoulder into the house and raise their left hand in a brief, casual wave-like gesture. They then turn forward and use their right hand to begin pushing the heavy wooden door closed. Their movement is fluid and carefree. The shot ends with a final jump cut before the door fully closes."
     },
     {
-      "t_start": 5,
-      "t_end": 6.6,
-      "action": "Cut to an outdoor shot. The woman walks towards the camera with a confident expression."
-    },
-    {
-      "t_start": 6.6,
-      "t_end": 7.7,
-      "action": "The woman turns her back to the camera, then spins back around to face the camera, flipping her hair."
-    },
-    {
-      "t_start": 7.7,
-      "t_end": 9,
-      "action": "The previous spinning action is repeated, ending with the woman smiling at the camera."
+      "t_start": 5.8,
+      "t_end": 9.1,
+      "action": "The scene jump cuts to an outdoor, medium close-up, chest-up shot. The person is walking directly toward the camera with a confident stride and a warm smile. The camera tracks backward to maintain framing, with a slight, natural handheld jitter. Around the 6.8-second mark, the person performs a quick, joyful spin, turning away from the camera and whipping their hair. They complete the turn to face the camera again, now with a broad, radiant smile. They continue their forward walk with renewed energy as the shot continues. At the very end of the clip, the spinning motion is repeated in a quick stutter-edit effect before the clip concludes."
     }
   ],
-  "composition_notes": "The video uses a vertical 9:16 aspect ratio. The first half is a static shot using match cuts on action to create seamless transitions between outfits. The second half features a slight camera follow movement.",
+  "composition_notes": "The video cleverly uses repetitive framing and match-on-action style jump cuts to create a seamless yet dynamic outfit-change montage. The static camera in the first three shots establishes a consistent visual stage, which is then broken by the moving, more intimate camera in the final outdoor shot, providing a satisfying conclusion.",
   "style": {
-    "lens": "natural 50mm",
-    "color_treatment": "bright and clean with natural tones",
-    "lighting_effects": "soft, diffuse daylight",
-    "special_effects": []
+    "lens": "Natural 50mm",
+    "color_treatment": "Warm and natural with bright, clean tones",
+    "lighting_effects": "Soft, diffused daylight",
+    "special_effects": [
+      "Jump cuts",
+      "Stutter repeat edit"
+    ]
   },
   "pose_archetypes": [
-    "confident",
-    "stylish",
-    "chic",
-    "playful"
+    "Confident",
+    "Professional",
+    "Athletic",
+    "Casual",
+    "Playful",
+    "Joyful"
   ],
-  "energy": "upbeat and confident quick-cut montage",
+  "energy": "Upbeat and polished lifestyle montage",
   "shot_backgrounds": [
-    "Modern home entryway with a large wooden pivot door, viewed from the exterior porch. The interior has bright lighting and visible potted plants.",
-    "Outdoor walkway with concrete steps in front of a modern house, surrounded by lush green foliage during the day."
+    "Interior view looking out through a modern wooden doorway with glass panels",
+    "Exterior view of a modern home with steps and green foliage"
   ]
 }
