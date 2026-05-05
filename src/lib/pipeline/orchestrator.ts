@@ -98,6 +98,18 @@ async function processLook(args: {
   const backgroundForLook = backgrounds[args.look_index % backgrounds.length];
   console.log(`[orchestrator] look ${args.look_index} background: ${backgroundForLook.slice(0, 80)}`);
 
+  // Per-look motion-script slice — only the entries that fall within this
+  // segment's time window (so Gemini's motion_prompt is shot-specific).
+  const SEGMENT_COUNT = 4;
+  const segmentIdx = args.look_index % SEGMENT_COUNT;
+  const totalDuration = args.template.metadata.motion_script.at(-1)?.t_end ?? 1;
+  const segDur = totalDuration / SEGMENT_COUNT;
+  const segStart = segmentIdx * segDur;
+  const segEnd = (segmentIdx + 1) * segDur;
+  const motionScriptForLook = args.template.metadata.motion_script.filter(
+    (e) => e.t_end > segStart && e.t_start < segEnd,
+  );
+
   // Stage 4 — orchestrate prompts for THIS look
   updateRun(args.run_id, {
     status: "orchestrating",
@@ -108,7 +120,13 @@ async function processLook(args: {
     template: args.template.metadata,
     products: products.map((p) => p.metadata),
     face: args.face_metadata,
-    options: { look_index: args.look_index, total_looks: args.total_looks, framing_scope: framingScope, background_for_look: backgroundForLook },
+    options: {
+      look_index: args.look_index,
+      total_looks: args.total_looks,
+      framing_scope: framingScope,
+      background_for_look: backgroundForLook,
+      motion_script_for_this_look: motionScriptForLook,
+    },
   });
 
   // Override motion_prompt with source_prompt.txt if present (Higgsfield-generated prompt)
@@ -191,12 +209,17 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
   const poseArchetype = archetypes[args.look_index % archetypes.length];
   const motionReferenceVideoPath = resolve("public", args.template.video_path);
 
+  // Per-look segment URL — use segment-{segmentIdx}.mp4 instead of full video
+  const segmentPath = args.template.video_path.replace("/video.mp4", "") + `/segment-${segmentIdx}.mp4`;
+  const perLookSegmentUrl = `${VERCEL_DEPLOYMENT_URL}/${segmentPath}`;
+  console.log(`[orchestrator] look ${args.look_index} motion segment: segment-${segmentIdx}.mp4 (${perLookSegmentUrl})`);
+
   let keyframeUrl: string | undefined;
   let motionReferenceUrl: string | undefined;
 
   if (USE_MOTION_CONTROL()) {
-    // Build the template's HTTPS URL on the deployed Vercel site
-    motionReferenceUrl = `${VERCEL_DEPLOYMENT_URL}/${args.template.video_path}`;
+    // Use the per-look segment as the motion reference instead of the full video
+    motionReferenceUrl = perLookSegmentUrl;
 
     // Upload this look's keyframe to Vercel Blob, get a public URL
     try {

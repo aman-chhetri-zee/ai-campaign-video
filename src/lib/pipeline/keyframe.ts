@@ -103,6 +103,7 @@ function buildTier1Prompt(
   secondaryProductDescriptions: string[],
   framingScope: FramingScope,
   backgroundDescription?: string,
+  hasSceneRef?: boolean,
 ): string {
   const base = keyframePrompt
     .replace(/IMAGE\s+\d+/gi, "")
@@ -125,19 +126,29 @@ function buildTier1Prompt(
           .join("; ")}. Render each of these items based on the text description — match the described colors, materials, and style as closely as possible.`
       : "";
 
+  const sceneRefClause = hasSceneRef
+    ? `Use the third reference image (style/scene reference) to anchor the architectural scene — match its doorway, door object if visible, walls, floor surfaces, lighting, and spatial perspective. The scene must feel grounded and consistent with the reference, not aesthetically vague. `
+    : "";
+
+  const priorityList = hasSceneRef
+    ? `Identity preservation is the highest priority; primary product visual fidelity is second; scene fidelity (door, architecture, lighting) is third; secondary product fidelity is fourth.`
+    : `Identity preservation is the highest priority; primary product visual fidelity is second; secondary product fidelity is third.`;
+
   return (
-    `Subject [1] is the specific person from the master subject reference image; render their EXACT face — same eyes, same skin tone, same hair, same distinctive features, same body type and proportions. Do not generate a different person; do not alter their physical appearance. ` +
+    `Subject [1] is the specific person from the master subject reference image; render their EXACT face — same eyes, skin tone, hair, distinctive features, body type, proportions. ` +
     `${framing} ${bgClause} ` +
+    `${sceneRefClause}` +
     `${primaryBinding} ${secondaryItems} ` +
     `${base} ` +
     `All items mentioned above MUST appear in the keyframe — none can be omitted, replaced with a default, or hallucinated. ` +
-    `Identity preservation is the highest priority; primary product visual fidelity is second; secondary product fidelity is third.`
+    `${priorityList}`
   );
 }
 
 async function tier1Customization(input: {
   keyframePrompt: string;
   referenceFace: ImageInput;
+  templateFirstFrame?: ImageInput;
   products: ProductWithDescription[];
   faceDescription?: string;
   framingScope: FramingScope;
@@ -150,12 +161,14 @@ async function tier1Customization(input: {
   const primary = input.products[0];
   const secondaries = input.products.slice(1);
 
+  const hasSceneRef = !!input.templateFirstFrame;
   const prompt = buildTier1Prompt(
     input.keyframePrompt,
     primary?.description,
     secondaries.map((p) => p.description),
     input.framingScope,
     input.backgroundDescription,
+    hasSceneRef,
   );
   console.log("[keyframe][tier1] prompt:", prompt.slice(0, 300));
 
@@ -185,14 +198,28 @@ async function tier1Customization(input: {
     });
   }
 
+  // Add template first_frame as a STYLE/SCENE reference (ref id 3)
+  if (input.templateFirstFrame) {
+    referenceImages.push({
+      referenceType: "REFERENCE_TYPE_STYLE",
+      referenceId: 3,
+      referenceImage: {
+        bytesBase64Encoded: input.templateFirstFrame.bytes.toString("base64"),
+      },
+      styleImageConfig: {
+        styleDescription:
+          "scene composition reference: capture the architectural elements, doorway/door, room layout, lighting, and spatial perspective from this image",
+      },
+    });
+  }
+
   const token = await getAccessToken();
 
-  let resp: Response;
-  try {
-    resp = await withRetry(
+  const makeRequest = (refs: object[]) =>
+    withRetry(
       async () => {
         const r = await fetchWithTimeout(endpoint, token, {
-          instances: [{ prompt, referenceImages }],
+          instances: [{ prompt, referenceImages: refs }],
           parameters: {
             sampleCount: 1,
             aspectRatio: "9:16",
@@ -207,9 +234,33 @@ async function tier1Customization(input: {
       },
       { label: "tier1-customization" },
     );
+
+  let resp: Response;
+  try {
+    resp = await makeRequest(referenceImages);
   } catch (err) {
-    console.warn("[keyframe][tier1] fetch error:", err);
-    return null;
+    const msg = (err as Error).message ?? "";
+    if (
+      msg.includes("more than 2 reference images") ||
+      msg.includes("non-square aspect-ratio") ||
+      msg.includes("referenceImages")
+    ) {
+      console.warn(
+        "[keyframe][tier1] 3-ref rejected, retrying with 2 refs (no style anchor):",
+        msg.slice(0, 200),
+      );
+      // Strip the style ref (id=3) and retry with face + product only
+      const trimmedRefs = referenceImages.filter((r: any) => r.referenceId !== 3);
+      try {
+        resp = await makeRequest(trimmedRefs);
+      } catch (err2) {
+        console.warn("[keyframe][tier1] 2-ref fallback also failed:", err2);
+        return null;
+      }
+    } else {
+      console.warn("[keyframe][tier1] fetch error:", err);
+      return null;
+    }
   }
 
   if (!resp.ok) {
@@ -437,6 +488,7 @@ export async function compositeKeyframe(input: {
   const tier1Result = await tier1Customization({
     keyframePrompt: input.keyframePrompt,
     referenceFace: input.referenceFace,
+    templateFirstFrame: input.templateFirstFrame,
     products: input.products,
     faceDescription: input.faceDescription,
     framingScope: input.framingScope ?? "chest_up",

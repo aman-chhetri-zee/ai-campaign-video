@@ -109,6 +109,7 @@ export function buildOrchestrationPrompt(
     total_looks?: number;
     framing_scope?: FramingScope;
     background_for_look?: string;
+    motion_script_for_this_look?: TemplateMetadata["motion_script"];
   },
 ): string {
   const idx = options?.look_index ?? 0;
@@ -120,6 +121,8 @@ export function buildOrchestrationPrompt(
   const poseForThisLook = archetypes[idx % archetypes.length];
   const framingText = framingInstruction(framingScope);
   const background = options?.background_for_look ?? "clean neutral solid backdrop";
+  // Use the per-look motion_script slice if provided; fall back to the full script
+  const lookMotion = options?.motion_script_for_this_look ?? template.motion_script;
 
   return `
 You are composing prompts for two AI models in a video pipeline.
@@ -172,8 +175,11 @@ Your motion_prompt MUST:
    tilt; surprised = eyebrow raise + small recoil; stylish = chin lift + half-turn).
 2. Include camera energy from template_analysis.energy and template.style.lens
    (e.g., fisheye → mention slight lens push-in).
-3. NOT describe the subject's face, body, or the products.
-4. Stay under 60 words.
+3. The motion is grounded SPECIFICALLY in this look's shot, NOT the whole video.
+   Use ONLY these motion_script entries (slice for this look):
+   ${JSON.stringify(lookMotion, null, 2)}
+4. NOT describe the subject's face, body, or the products.
+5. Stay under 60 words.
 
 ----------------------------------------------------------------------
 negative_prompt — shared across both calls.
