@@ -135,13 +135,22 @@ function buildTier1Prompt(
     : `Identity preservation is the highest priority; primary product visual fidelity is second; secondary product fidelity is third.`;
 
   return (
-    `Subject [1] is the specific person from the master subject reference image; render their EXACT face — same eyes, skin tone, hair, distinctive features, body type, proportions. ` +
+    // STRICT identity match against master
+    `Subject [1] is the SAME EXACT PERSON shown in the master subject reference image. ` +
+    `The keyframe must look like the master subject simply changed clothes — every physical feature must match the master IDENTICALLY: ` +
+    `(a) same face shape, jawline, cheekbone structure, eye shape and color, nose shape, lip shape; ` +
+    `(b) same skin tone and texture; ` +
+    `(c) same hair length, color, texture, parting, and styling; ` +
+    `(d) same body type, weight, build, proportions, and height impression as the master. ` +
+    `Do NOT alter, idealize, slim down, age down, or restyle Subject [1] in any way. ` +
+    `If the master shows a person with average build, the keyframe must show that same average build — do not slim them. ` +
+    `If the master shows long hair, the keyframe must show long hair of the same length. ` +
     `${framing} ${bgClause} ` +
     `${sceneRefClause}` +
     `${primaryBinding} ${secondaryItems} ` +
     `${base} ` +
-    `All items mentioned above MUST appear in the keyframe — none can be omitted, replaced with a default, or hallucinated. ` +
-    `${priorityList}`
+    `All items mentioned above MUST appear in the keyframe — none can be omitted. ` +
+    `Identity match to the master is the absolute highest priority — outranking primary product fidelity, scene fidelity, and secondary product fidelity.`
   );
 }
 

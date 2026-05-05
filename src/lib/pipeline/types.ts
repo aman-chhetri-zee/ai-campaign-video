@@ -71,6 +71,10 @@ export type FaceMetadata = {
   hair: string;
   distinctive_features: string;
   ethnicity_cues: string;
+  // NEW
+  is_full_body: boolean;            // true if the reference image shows the full body, false if face-only/selfie
+  body_description: string;         // if is_full_body=true, a detailed description of build, weight, proportions, height impression. Empty string otherwise.
+  visible_clothing_in_reference: string;  // what they're wearing in the reference (helps master generation match clothing context)
 };
 
 // ----- Stage 4 output -----

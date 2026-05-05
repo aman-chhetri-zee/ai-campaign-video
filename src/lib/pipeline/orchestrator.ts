@@ -31,6 +31,13 @@ const USE_MOTION_CONTROL = () => process.env.KLING_USE_MOTION_CONTROL === "true"
 // ---------------------------------------------------------------------------
 const USE_SEEDANCE = () => process.env.USE_SEEDANCE === "true";
 
+// ---------------------------------------------------------------------------
+// Feature flag — when true, stop after keyframe generation and skip Kling
+// motion-control calls and the final concat. Useful for testing image quality
+// without burning Kling credits.
+// ---------------------------------------------------------------------------
+const SKIP_KLING = () => process.env.SKIP_KLING === "true";
+
 function loadTemplate(template_id: string): TemplateAsset {
   const dir = resolve("public/templates", template_id);
   const metadata = JSON.parse(
@@ -87,7 +94,7 @@ async function processLook(args: {
   referenceFaceMimeType: string;
   look: Look;
   runDir: string;
-}): Promise<{ keyframePath: string; clipPath: string; keyframe_url: string; clip_url: string }> {
+}): Promise<{ keyframePath: string; clipPath: string | null; keyframe_url: string; clip_url: string | null }> {
   const products = args.look.product_ids.map(loadProduct);
   const framingScope = inferFramingScope(products.map((p) => p.metadata));
   console.log(`[orchestrator] look ${args.look_index} framing_scope: ${framingScope}`);
@@ -193,6 +200,12 @@ ${judgement.issues.map((i) => `- ${i}`).join("\n")}`;
   const keyframePath = join(args.runDir, `keyframe-${args.look_index}.png`);
   writeFileSync(keyframePath, keyframe.imageBytes);
   const keyframe_url = `/runs/${args.run_id}/keyframe-${args.look_index}.png`;
+
+  // SKIP_KLING early exit — return without calling Kling; clipPath is null
+  if (SKIP_KLING()) {
+    console.log(`[orchestrator] SKIP_KLING=true — keyframe ${args.look_index} saved, skipping Kling`);
+    return { keyframePath, clipPath: null, keyframe_url, clip_url: null };
+  }
 
   // Stage 6 — Kling
   updateRun(args.run_id, {
@@ -515,11 +528,21 @@ export async function runPipeline(
         runDir,
       });
       keyframeUrls.push(result.keyframe_url);
-      clipUrls.push(result.clip_url);
-      clipPaths.push(result.clipPath);
+      if (result.clip_url) clipUrls.push(result.clip_url);
+      if (result.clipPath) clipPaths.push(result.clipPath);
       updateRun(run_id, {
         per_look_keyframe_urls: [...keyframeUrls],
-        per_look_clip_urls: [...clipUrls],
+        ...(clipUrls.length > 0 ? { per_look_clip_urls: [...clipUrls] } : {}),
+      });
+    }
+
+    // If SKIP_KLING, stop here — no concat, no audio mux, no output.mp4
+    if (SKIP_KLING()) {
+      console.log("[orchestrator] SKIP_KLING=true — stopping after keyframe generation; not calling Kling/concat");
+      return updateRun(run_id, {
+        status: "succeeded",
+        progress_label: "Keyframes generated (Kling skipped)",
+        per_look_keyframe_urls: keyframeUrls,
       });
     }
 

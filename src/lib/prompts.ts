@@ -66,10 +66,27 @@ OUTPUT: strict JSON matching the response_schema.
 `.trim();
 
 export const FACE_ANALYSIS_PROMPT = `
-Describe this reference photo objectively for downstream identity-preserving
-image generation. Use descriptive, neutral language only. Avoid subjective
-language ("beautiful", "ordinary"). The goal is enough detail that a downstream
-image generator can preserve this exact identity.
+Describe the person in this reference photo objectively for downstream identity-
+preserving image generation. Use descriptive, neutral language only. Avoid
+subjective language ("beautiful", "ordinary"). The goal is enough detail that a
+downstream image generator can preserve this exact identity.
+
+Also detect whether this image shows the full body or just the face/upper-body:
+- is_full_body=true: image shows the person from head to feet (or close to it),
+  enough to convey body shape, build, proportions
+- is_full_body=false: image is a face-focused selfie / headshot / portrait that
+  doesn't reliably show body proportions
+
+If is_full_body=true, describe their body in body_description: build (slim,
+athletic, average, curvy, plus-sized, etc.), proportions, posture, any
+distinctive body characteristics. Be objective — don't editorialize.
+
+If is_full_body=false, leave body_description as an empty string. Downstream
+generation will use a neutral default body type.
+
+Also describe what the person is wearing in the reference (visible_clothing_in_reference)
+— this helps downstream generation respect the visual context, even if the
+master subject will wear different (neutral) clothing.
 
 OUTPUT: strict JSON matching the response_schema.
 `.trim();

@@ -8,15 +8,19 @@ import { createRun } from "../src/lib/pipeline/run-store";
 
 async function main() {
   // AI-generated model (avoids Seedance's privacy filter on real-person photos)
-  const facePath = resolve("public/creators/ai-model.jpg");
+  const facePath = resolve("public/creators/creator-1.jpeg");
   const faceMimeType = facePath.toLowerCase().endsWith(".jpg") || facePath.toLowerCase().endsWith(".jpeg")
     ? "image/jpeg"
     : "image/png";
 
   const run = createRun({
-    template_id: "template-higgs",   // Higgsfield AI-generated reference
+    template_id: "template-2",
     looks: [
-      { product_ids: ["skirt", "blue-tshirt", "black-boots", "purse"] },
+      // Four distinct outfits — each full-body (bottoms + footwear) so framing kicks in correctly
+      { product_ids: ["black-top", "skirt", "black-boots"] },                 // monochrome elegant
+      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers"] },            // casual streetwear
+      { product_ids: ["black-top", "baggy-jeans", "black-boots", "purse"] },  // edgy with handbag
+      { product_ids: ["blue-tshirt", "skirt", "sneakers", "satchel-bag"] },   // playful with bag
     ],
     reference_face_path: facePath,
   });
@@ -26,6 +30,7 @@ async function main() {
   console.log("looks:", JSON.stringify(run.looks));
   console.log("face:", facePath);
   console.log("env: KLING_USE_MOTION_CONTROL =", process.env.KLING_USE_MOTION_CONTROL);
+  console.log("env: SKIP_KLING =", process.env.SKIP_KLING);
   console.log("env: BLOB_READ_WRITE_TOKEN =", process.env.BLOB_READ_WRITE_TOKEN ? "<set>" : "<missing>");
   console.log("env: VERCEL_DEPLOYMENT_URL =", process.env.VERCEL_DEPLOYMENT_URL);
   console.log("===");

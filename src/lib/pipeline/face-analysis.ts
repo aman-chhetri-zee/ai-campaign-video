@@ -16,6 +16,9 @@ const FACE_RESPONSE_SCHEMA = {
     hair: { type: "string" },
     distinctive_features: { type: "string" },
     ethnicity_cues: { type: "string" },
+    is_full_body: { type: "boolean" },
+    body_description: { type: "string" },
+    visible_clothing_in_reference: { type: "string" },
   },
   required: [
     "perceived_gender",
@@ -24,6 +27,9 @@ const FACE_RESPONSE_SCHEMA = {
     "hair",
     "distinctive_features",
     "ethnicity_cues",
+    "is_full_body",
+    "body_description",
+    "visible_clothing_in_reference",
   ],
 };
 

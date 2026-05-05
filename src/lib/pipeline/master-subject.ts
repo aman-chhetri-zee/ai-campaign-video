@@ -55,14 +55,47 @@ export async function generateMasterSubjectReference(input: {
     .filter(Boolean)
     .join(", ");
 
+  // Build a body description: prefer the reference's actual body if available,
+  // otherwise default to "average build with healthy natural proportions" — NOT slim.
+  const bodyClause = fm.is_full_body && fm.body_description
+    ? `BODY — preserve the body type and proportions from the reference image: ${fm.body_description}. Match the build, weight, and overall shape exactly.`
+    : `BODY — use an AVERAGE adult build with natural healthy proportions. Not slim, not muscular, not plus-sized — just a typical, average, realistic body shape. Do not default to a fashion-model slim build.`;
+
   const prompt = [
+    // OPENING: declare the rendering goal
     "Generate a clean, full-body, head-to-toe vertical 9:16 portrait of Subject [1] (the specific person from the reference image).",
-    "The person stands in a neutral frontal pose, arms relaxed at their sides, looking at camera, against a plain neutral light-grey backdrop with even soft studio lighting.",
-    "They wear a simple plain white t-shirt and plain light-blue straight-cut jeans — minimal, basic, no patterns, no accessories, no jewelry.",
-    "Render their face EXACTLY matching Subject [1] — same eyes, skin tone, hair, distinctive features. Identity preservation is the highest priority.",
+    // POSE: what the master must look like
+    "The person stands in a neutral frontal pose, arms relaxed at their sides, looking straight at camera, against a plain neutral light-grey backdrop with even soft studio lighting.",
+    // OUTFIT: deliberately neutral/basic
+    "They wear a simple plain white t-shirt and plain light-blue straight-cut jeans — minimal, basic, no patterns, no accessories, no jewelry beyond what is visible in the reference image.",
+    // STRICT TRAIT PRESERVATION — the heart of the fix
+    `STRICT IDENTITY PRESERVATION: Subject [1]'s physical traits must match the reference image EXACTLY — preserve every detail. Specifically:`,
+    `  • HAIR — preserve the exact length, exact color, exact texture, exact part, exact volume, exact styling shown in the reference. Hair description from analysis: "${fm.hair || "as shown in the reference image"}". DO NOT cut, shorten, restyle, straighten, curl, or alter the hair in any way. If the reference hair extends to chest level, the master's hair must extend to chest level. If it's wavy, keep it wavy. If it's parted center, keep it parted center.`,
+    `  • FACE — same exact face shape, jawline, cheekbone structure, eye shape and size, eye color, nose shape, lip shape and size, eyebrow shape and thickness.`,
+    `  • SKIN — same exact skin tone, undertone, texture, and any visible distinctive marks (moles, freckles, scars).`,
+    `  • DISTINCTIVE FEATURES — preserve all of: ${fm.distinctive_features || "(see reference)"}. These features must remain visible and unchanged in the master image.`,
+    `  • ${bodyClause}`,
+    fm.visible_clothing_in_reference
+      ? `  • CLOTHING CONTEXT (reference only, do NOT replicate) — in the reference image the person is wearing: ${fm.visible_clothing_in_reference}. Use this context to understand their body shape and proportions, but the master should wear the neutral white t-shirt and light jeans described above.`
+      : "",
+    // FRAMING
     "The shot is wide enough to show the entire person from the very top of the head to below the feet — feet must be in the lower third of the frame.",
+    // META
     "No text, no logos, no watermarks. Clean studio fashion-photography aesthetic.",
-  ].join(" ");
+    // CLOSING EMPHASIS
+    "Identity preservation is the absolute highest priority. The master image must look like the SAME PERSON from the reference, simply standing in a neutral pose against a neutral backdrop. Do not introduce any creative interpretation that alters their physical appearance.",
+  ].filter(Boolean).join(" ");
+
+  const subjectDescriptionForCfg = [
+    fm.perceived_gender,
+    fm.age_range,
+    `${fm.skin_tone} skin`,
+    fm.hair ? `with ${fm.hair}` : null,
+    fm.distinctive_features ? `with ${fm.distinctive_features}` : null,
+    fm.ethnicity_cues,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const body = {
     instances: [
@@ -74,7 +107,7 @@ export async function generateMasterSubjectReference(input: {
             referenceId: 1,
             referenceImage: { bytesBase64Encoded: input.faceImageBytes.toString("base64") },
             subjectImageConfig: {
-              subjectDescription: subjectDesc || "person from reference image",
+              subjectDescription: subjectDescriptionForCfg || "person from reference image",
               subjectType: "SUBJECT_TYPE_PERSON",
             },
           },
