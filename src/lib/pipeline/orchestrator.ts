@@ -640,6 +640,22 @@ export async function runPipeline(
         console.log(`[orchestrator] using MOTION_REFERENCE_URL_OVERRIDE for template video: ${motionReferenceUrl.slice(0, 100)}`);
       }
 
+      // Per-product URL overrides for products not yet deployed to production.
+      // PRODUCT_URL_OVERRIDES is a JSON map of {product_id: blob_url}.
+      let productUrlOverrides: Record<string, string> = {};
+      if (process.env.PRODUCT_URL_OVERRIDES) {
+        try {
+          productUrlOverrides = JSON.parse(process.env.PRODUCT_URL_OVERRIDES);
+          console.log(
+            `[orchestrator] using PRODUCT_URL_OVERRIDES for: ${Object.keys(productUrlOverrides).join(", ")}`,
+          );
+        } catch (err) {
+          console.warn(`[orchestrator] PRODUCT_URL_OVERRIDES parse failed: ${(err as Error).message}`);
+        }
+      }
+      const productUrlFor = (p: ProductAsset): string =>
+        productUrlOverrides[p.id] ?? `${VERCEL_DEPLOYMENT_URL}/${p.image_path}`;
+
       const keyframeUrls: string[] = [];
       const clipUrls: string[] = [];
       const clipPaths: string[] = [];
@@ -798,10 +814,8 @@ export async function runPipeline(
             ? motionScriptForLook.at(-1)!.t_end - motionScriptForLook[0].t_start
             : 5;
 
-        // Build product reference URLs from the public deployment (no extra upload needed)
-        const productReferenceUrls = products.map(
-          (p) => `${VERCEL_DEPLOYMENT_URL}/${p.image_path}`,
-        );
+        // Build product reference URLs (public deployment, with PRODUCT_URL_OVERRIDES applied per id)
+        const productReferenceUrls = products.map(productUrlFor);
 
         if (kieStrategy === "multishot_single_call") {
           // Multishot mode — collect per-shot context and skip per-shot kie.ai calls.
