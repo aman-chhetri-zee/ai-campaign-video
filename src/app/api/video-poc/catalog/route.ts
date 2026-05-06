@@ -12,11 +12,17 @@ export async function GET() {
     .filter((d) => d.isDirectory())
     .map((d) => d.name)
     .filter((id) => existsSync(join(templatesRoot, id, "metadata.json")))
-    .map((id) => ({
-      id,
-      video_url: `/templates/${id}/video.mp4`,
-      first_frame_url: `/templates/${id}/first_frame.png`,
-    }));
+    .map((id) => {
+      const meta = JSON.parse(
+        readFileSync(join(templatesRoot, id, "metadata.json"), "utf-8"),
+      );
+      return {
+        id,
+        video_url: `/templates/${id}/video.mp4`,
+        first_frame_url: `/templates/${id}/first_frame.png`,
+        outfit_slots: Math.max(1, meta.outfit_segments?.length ?? 1),
+      };
+    });
 
   const products = readdirSync(productsRoot, { withFileTypes: true })
     .filter((d) => d.isDirectory())

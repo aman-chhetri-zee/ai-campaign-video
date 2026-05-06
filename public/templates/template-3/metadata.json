@@ -38,5 +38,8 @@
   "energy": "Slow and deliberate model test",
   "shot_backgrounds": [
     "Plain grey studio seamless paper backdrop"
+  ],
+  "outfit_segments": [
+    { "t_start": 0, "t_end": 9.5, "shot_indices": [0, 1, 2] }
   ]
 }

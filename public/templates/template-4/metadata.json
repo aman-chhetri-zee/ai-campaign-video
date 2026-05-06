@@ -48,5 +48,8 @@
   "energy": "Lighthearted and cheerful",
   "shot_backgrounds": [
     "Plain beige studio backdrop"
+  ],
+  "outfit_segments": [
+    { "t_start": 0, "t_end": 7, "shot_indices": [0, 1, 2, 3, 4] }
   ]
 }

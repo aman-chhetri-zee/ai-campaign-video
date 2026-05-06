@@ -13,14 +13,12 @@ async function main() {
     ? "image/jpeg"
     : "image/png";
 
+  // Single-segment template (template-3 = 1 outfit slot). The pipeline should
+  // generate ONE 10s clip and skip the multi-clip concat path entirely.
   const run = createRun({
-    template_id: "template-1",
+    template_id: "template-3",
     looks: [
-      // Four distinct outfits — each full-body (top + bottom + footwear, sometimes a bag)
-      { product_ids: ["black-top", "skirt", "black-boots"] },                    // monochrome elegant, no bag
-      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers", "purse"] },      // casual streetwear with handbag
-      { product_ids: ["black-top", "baggy-jeans", "black-boots", "satchel-bag"] }, // edgy with shoulder satchel
-      { product_ids: ["blue-tshirt", "skirt", "sneakers"] },                     // playful, no bag
+      { product_ids: ["black-top", "skirt", "black-boots"] }, // single full-body outfit
     ],
     reference_face_path: facePath,
   });

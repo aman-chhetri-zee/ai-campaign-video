@@ -85,5 +85,16 @@
     "Abstract soft-focus background for macro shot",
     "Futuristic, complex metallic structure",
     "Vibrant, iridescent urban alley at night"
+  ],
+  "outfit_segments": [
+    { "t_start": 0,    "t_end": 1.05, "shot_indices": [0] },
+    { "t_start": 1.05, "t_end": 2,    "shot_indices": [1] },
+    { "t_start": 2,    "t_end": 3,    "shot_indices": [2] },
+    { "t_start": 3,    "t_end": 4,    "shot_indices": [3] },
+    { "t_start": 4,    "t_end": 5,    "shot_indices": [4] },
+    { "t_start": 5,    "t_end": 6,    "shot_indices": [5] },
+    { "t_start": 6,    "t_end": 7,    "shot_indices": [6] },
+    { "t_start": 7,    "t_end": 8.6,  "shot_indices": [7] },
+    { "t_start": 8.6,  "t_end": 10,   "shot_indices": [8] }
   ]
 }

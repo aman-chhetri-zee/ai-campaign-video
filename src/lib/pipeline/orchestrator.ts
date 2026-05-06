@@ -98,6 +98,34 @@ function buildProductDescription(p: ProductAsset): string {
   return filtered || p.metadata.overall_description;
 }
 
+// ---------------------------------------------------------------------------
+// Outfit-driven segmentation
+// ---------------------------------------------------------------------------
+//
+// `outfit_segments[]` in template metadata declares the canonical outfit slots
+// for that template. For look N, we use outfit_segments[N % outfit_segments.length].
+//
+// If outfit_segments is missing (legacy metadata), we synthesize a single
+// segment covering the full motion_script — i.e. treat the template as
+// single-outfit. This keeps the pipeline behaving consistently for any
+// template that hasn't been migrated yet.
+function pickOutfitSegment(
+  metadata: TemplateMetadata,
+  look_index: number,
+): { index: number; segment: { t_start: number; t_end: number; shot_indices: number[] } } {
+  const segments = metadata.outfit_segments && metadata.outfit_segments.length > 0
+    ? metadata.outfit_segments
+    : [
+        {
+          t_start: metadata.motion_script[0]?.t_start ?? 0,
+          t_end: metadata.motion_script.at(-1)?.t_end ?? 1,
+          shot_indices: metadata.motion_script.map((_, i) => i),
+        },
+      ];
+  const idx = look_index % segments.length;
+  return { index: idx, segment: segments[idx] };
+}
+
 async function processLook(args: {
   run_id: string;
   look_index: number;
@@ -123,17 +151,16 @@ async function processLook(args: {
   const backgroundForLook = backgrounds[args.look_index % backgrounds.length];
   console.log(`[orchestrator] look ${args.look_index} background: ${backgroundForLook.slice(0, 80)}`);
 
-  // Per-look motion-script slice — only the entries that fall within this
-  // segment's time window (so Gemini's motion_prompt is shot-specific).
-  const SEGMENT_COUNT = 4;
-  const segmentIdx = args.look_index % SEGMENT_COUNT;
-  const totalDuration = args.template.metadata.motion_script.at(-1)?.t_end ?? 1;
-  const segDur = totalDuration / SEGMENT_COUNT;
-  const segStart = segmentIdx * segDur;
-  const segEnd = (segmentIdx + 1) * segDur;
-  const motionScriptForLook = args.template.metadata.motion_script.filter(
-    (e) => e.t_end > segStart && e.t_start < segEnd,
-  );
+  // Per-look slice driven by template.outfit_segments (the canonical outfit
+  // slots for this template). Look N → outfit_segments[N] (capped at length).
+  const segmentPlan = pickOutfitSegment(args.template.metadata, args.look_index);
+  const segmentIdx = segmentPlan.index;
+  const segStart = segmentPlan.segment.t_start;
+  const segEnd = segmentPlan.segment.t_end;
+  const segDur = segEnd - segStart;
+  const motionScriptForLook = segmentPlan.segment.shot_indices
+    .map((i) => args.template.metadata.motion_script[i])
+    .filter(Boolean);
 
   // Stage 4 — orchestrate prompts for THIS look
   updateRun(args.run_id, {
@@ -605,14 +632,14 @@ export async function runPipeline(
             : ["clean neutral solid backdrop"];
         const backgroundForLook = backgrounds[i % backgrounds.length];
 
-        const segmentIdx = i % 4;
-        const totalDuration = template.metadata.motion_script.at(-1)?.t_end ?? 1;
-        const segDur = totalDuration / 4;
-        const segStart = segmentIdx * segDur;
-        const segEnd = (segmentIdx + 1) * segDur;
-        const motionScriptForLook = template.metadata.motion_script.filter(
-          (e) => e.t_end > segStart && e.t_start < segEnd,
-        );
+        const segmentPlan = pickOutfitSegment(template.metadata, i);
+        const segmentIdx = segmentPlan.index;
+        const segStart = segmentPlan.segment.t_start;
+        const segEnd = segmentPlan.segment.t_end;
+        const segDur = segEnd - segStart;
+        const motionScriptForLook = segmentPlan.segment.shot_indices
+          .map((idx) => template.metadata.motion_script[idx])
+          .filter(Boolean);
 
         const prompts = await orchestratePrompts({
           template: template.metadata,
