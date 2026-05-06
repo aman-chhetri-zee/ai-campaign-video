@@ -630,8 +630,15 @@ export async function runPipeline(
       const kieStrategy = getKieVideoStrategy();
       console.log(`[orchestrator] provider=kie_seedance strategy=${kieStrategy}`);
 
-      // Template video URL served from Vercel deployment (kie.ai fetches it server-side)
-      const motionReferenceUrl = `${VERCEL_DEPLOYMENT_URL}/${template.video_path}`;
+      // Template video URL served from Vercel deployment (kie.ai fetches it
+      // server-side). For templates not yet deployed to production, set
+      // MOTION_REFERENCE_URL_OVERRIDE to a public Blob URL.
+      const motionReferenceUrl =
+        process.env.MOTION_REFERENCE_URL_OVERRIDE?.trim() ||
+        `${VERCEL_DEPLOYMENT_URL}/${template.video_path}`;
+      if (process.env.MOTION_REFERENCE_URL_OVERRIDE) {
+        console.log(`[orchestrator] using MOTION_REFERENCE_URL_OVERRIDE for template video: ${motionReferenceUrl.slice(0, 100)}`);
+      }
 
       const keyframeUrls: string[] = [];
       const clipUrls: string[] = [];
@@ -961,22 +968,35 @@ export async function runPipeline(
           });
         }
 
-        // Build the comprehensive prompt with per-shot timestamps + outfits
+        // Build the comprehensive prompt with per-shot timestamps + outfits.
+        // STRICT outfit-to-shot binding language is the only lever we have
+        // against Seedance's tendency to redistribute reference_image_urls
+        // across perceived shots based on visual weight (longer/repeated
+        // settings hijack outfits assigned to short/unique settings).
         const shotLines = multishotShotPlan.map((s, idx) => {
           const action = s.motion_prompt
             .replace(/\s+/g, " ")
             .trim()
             .slice(0, 350);
-          return `SHOT ${idx + 1} (${s.t_start.toFixed(1)}-${s.t_end.toFixed(1)}s, the subject wears the outfit shown in keyframe ${idx + 1}: ${s.outfit_description}). Action: ${action}`;
+          return [
+            `SHOT ${idx + 1} (${s.t_start.toFixed(1)}-${s.t_end.toFixed(1)}s):`,
+            `  - The subject wears the EXACT outfit shown in keyframe ${idx + 1} — ${s.outfit_description}.`,
+            `  - This outfit is LOCKED to this shot's timestamp range and MUST appear in every frame within it.`,
+            `  - This outfit MUST NEVER appear in any other shot's timestamp range. If you find yourself rendering this outfit at a timestamp outside ${s.t_start.toFixed(1)}-${s.t_end.toFixed(1)}s, that is INCORRECT.`,
+            `  - Action: ${action}`,
+          ].join("\n");
         });
         const multishotPrompt = [
           `Multi-shot fashion video, ${fullDuration.toFixed(1)} seconds total, ${multishotShotPlan.length} shots.`,
           "The subject changes outfits across the shots — match the reference video's shot structure and timing exactly.",
           "Use jump cuts at the timestamps below to swap outfits. Keep the same person identity (face, body, hair) consistent across all shots.",
           "",
+          "STRICT OUTFIT-TO-SHOT BINDING (highest priority):",
+          "Each keyframe's outfit is bound to exactly ONE shot's timestamp range. The model MUST NOT redistribute, blend, swap, or repeat outfits across shots — even if some shots are short or some settings are revisited later in the reference video. Short or unique-setting shots must still show their assigned outfit; do not give those shots' outfits to longer or revisited shots.",
+          "",
           ...shotLines,
           "",
-          "Identity match to the reference images is the absolute highest priority. Each shot must show the subject wearing the outfit assigned to that shot — do not blend or swap outfits between shots.",
+          "Identity match to the reference images is the absolute highest priority. Outfit-to-shot binding is the second highest priority — outranking motion fidelity and scene reproduction. Each shot must show the subject wearing the outfit assigned to that shot — do not blend or swap outfits between shots, ever.",
         ].join("\n");
 
         console.log(

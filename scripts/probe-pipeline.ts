@@ -12,12 +12,15 @@ async function main() {
     ? "image/jpeg"
     : "image/png";
 
-  // template-5 is single-outfit (1 outfit_segment, 9.5s total). 1 keyframe →
-  // 1 kie.ai call → 1 clip, audio muxed. No concat.
+  // template-6: 3 outfit_segments (graffiti / fence / court, 5.4s total).
+  // Multishot mode is the right fit — single kie.ai call distributes the 3
+  // keyframes across the perceived shots; output stays close to template duration.
   const run = createRun({
-    template_id: "template-5",
+    template_id: "template-6",
     looks: [
-      { product_ids: ["black-top", "skirt", "black-boots", "purse"] },
+      { product_ids: ["black-top", "skirt", "black-boots"] },                  // outfit 1 — graffiti wall
+      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers", "purse"] },    // outfit 2 — chain-link fence
+      { product_ids: ["oversized-tee", "grey-trouser", "sneakers"] },          // outfit 3 — red/blue court
     ],
     reference_face_path: facePath,
   });

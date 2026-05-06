@@ -1,0 +1,18 @@
+{
+  "primary_item_type": "sweatpants",
+  "items": [
+    {
+      "item_type": "sweatpants",
+      "attachment_strategy": "worn_on_legs",
+      "side_preference": "none",
+      "visual_description": "A pair of light grey heathered wide-leg sweatpants with an elasticated waistband and a matching drawstring at the center."
+    }
+  ],
+  "overall_description": "This is a simple, classic pair of wide-leg sweatpants in a light grey heathered jersey or fleece fabric. The pants have a relaxed fit, an elasticated waistband, and a drawstring for an adjustable fit, making them suitable for casual wear or lounging.",
+  "key_features": [
+    "Light grey heathered fabric",
+    "Wide-leg cut",
+    "Elasticated waistband",
+    "Drawstring closure"
+  ]
+}

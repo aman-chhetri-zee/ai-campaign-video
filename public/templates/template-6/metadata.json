@@ -37,7 +37,7 @@
       "action": "The final shot is a continuation of the previous one, holding the exact same pose, framing, and slow push-in camera motion. The person remains leaning against the graffiti wall, hands in pockets, looking at the camera. However, a digital color effect has been applied, instantly changing the prominent red tones of their clothing and the background graffiti to a bright, golden yellow. The subject maintains their cool, direct gaze as the video holds on this altered-color shot before ending."
     }
   ],
-  "composition_notes": "The video uses a rapid-fire editing style with hard cuts synchronized to an implied beat. It cycles through a small number of static, confident poses, using repetition and slight variations (like the color change) to create a dynamic and stylish montage. The framing consistently keeps the subject centered and as the main focal point.",
+  "composition_notes": "The video uses a rapid-fire editing style with hard cuts synchronized to an implied beat. It cycles through a small number of static, confident poses, using repetition and slight variations (like the color change) to create a dynamic and stylish montage. The framing consistently keeps the subject centered and as the main focal point. Transitions between outfits use speed ramping — the action briefly accelerates into each cut and snaps back to normal speed in the next shot, giving the cut points a punchy, kinetic feel rather than a clean hard cut. Apply this speed-ramp acceleration on every outfit-change boundary.",
   "style": {
     "lens": "Natural 50mm",
     "color_treatment": "Slightly desaturated with warm-shifted midtones",
@@ -45,7 +45,8 @@
     "special_effects": [
       "rapid cuts",
       "stutter effect",
-      "color replacement"
+      "color replacement",
+      "speed ramping at outfit transitions (each cut accelerates briefly into the next outfit, then snaps back to normal speed)"
     ]
   },
   "pose_archetypes": [
