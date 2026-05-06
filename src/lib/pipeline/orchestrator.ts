@@ -11,6 +11,7 @@ import { generateVideoFromKeyframe } from "./kling";
 import { generateMultiShotViaSeedance } from "./seedance";
 import { generateViaKieSeedance } from "./kie-seedance";
 import { concatClips } from "./concat";
+import { conformClipDuration } from "./clip-conform";
 import { generateMasterSubjectReference } from "./master-subject";
 import { updateRun, getRun } from "./run-store";
 import { uploadToBlob } from "./upload";
@@ -53,6 +54,24 @@ function getVideoProvider(): VideoProvider {
 // without burning credits.
 // ---------------------------------------------------------------------------
 const SKIP_KLING = () => process.env.SKIP_KLING === "true";
+
+// ---------------------------------------------------------------------------
+// kie.ai video strategy — switch between two architectures for comparison.
+//   per_shot_conform   (default) — N kie.ai calls (one per outfit segment),
+//                                  ffmpeg-speed-conform each clip to its true
+//                                  segment span (max 2.5x speedup, trim above),
+//                                  then concat. Robust for any template.
+//   multishot_single_call         — ONE kie.ai call with all outfit keyframes
+//                                  + the full template as reference video, at
+//                                  the template's full duration. Skips concat.
+//                                  Cheaper + faster but relies on Seedance's
+//                                  multi-shot mode honoring outfit transitions.
+// ---------------------------------------------------------------------------
+type KieVideoStrategy = "per_shot_conform" | "multishot_single_call";
+const getKieVideoStrategy = (): KieVideoStrategy => {
+  const v = process.env.KIE_VIDEO_STRATEGY?.trim().toLowerCase();
+  return v === "multishot_single_call" ? "multishot_single_call" : "per_shot_conform";
+};
 
 function loadTemplate(template_id: string): TemplateAsset {
   const dir = resolve("public/templates", template_id);
@@ -769,18 +788,32 @@ export async function runPipeline(
           resolution: "720p",
         });
 
-        const clipPath = join(runDir, `clip-${i}.mp4`);
-        writeFileSync(clipPath, kieResult.videoBytes);
+        const rawClipPath = join(runDir, `clip-${i}-raw.mp4`);
+        writeFileSync(rawClipPath, kieResult.videoBytes);
 
         // Log actual vs requested duration
         const actualDuration = await new Promise<number>((resolve) => {
-          ffmpeg.ffprobe(clipPath, (err, data) => {
+          ffmpeg.ffprobe(rawClipPath, (err, data) => {
             if (err) return resolve(0);
             resolve(data.format?.duration ?? 0);
           });
         });
         console.log(
           `[orchestrator] look ${i} duration check: requested=${targetDurationSeconds}s actual=${actualDuration.toFixed(2)}s`,
+        );
+
+        // Speed-conform the clip so its duration matches the segment's true span.
+        // kie.ai's 4s minimum often inflates short segments — without this, output
+        // ends up longer than the template (e.g. template-2 = 9.1s segments → 13s output).
+        const clipPath = join(runDir, `clip-${i}.mp4`);
+        const conform = await conformClipDuration({
+          inputPath: rawClipPath,
+          outputPath: clipPath,
+          actualDurationSeconds: actualDuration,
+          targetDurationSeconds: segmentSpan,
+        });
+        console.log(
+          `[orchestrator] look ${i} conform: target=${segmentSpan.toFixed(2)}s, speedup=${conform.speedupApplied.toFixed(2)}x${conform.trimmed ? " (trimmed)" : ""}, final=${conform.finalDurationSeconds.toFixed(2)}s`,
         );
 
         clipPaths.push(clipPath);
