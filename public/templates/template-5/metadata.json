@@ -39,5 +39,8 @@
   "energy": "Slow and confident strut",
   "shot_backgrounds": [
     "An outdoor stone portico with large wooden doors, concrete pillars, and a red brick wall."
+  ],
+  "outfit_segments": [
+    { "t_start": 0, "t_end": 9.5, "shot_indices": [0, 1, 2] }
   ]
 }

@@ -7,20 +7,20 @@ import { runPipeline } from "../src/lib/pipeline/orchestrator";
 import { createRun } from "../src/lib/pipeline/run-store";
 
 async function main() {
-  // AI-generated model (avoids Seedance's privacy filter on real-person photos)
-  const facePath = resolve("public/creators/creator-1.jpeg");
+  const facePath = resolve("public/creators/creator-2.jpg");
   const faceMimeType = facePath.toLowerCase().endsWith(".jpg") || facePath.toLowerCase().endsWith(".jpeg")
     ? "image/jpeg"
     : "image/png";
 
+  // template-6: 3 outfit_segments (graffiti / fence / court, 5.4s total).
+  // Multishot mode is the right fit — single kie.ai call distributes the 3
+  // keyframes across the perceived shots; output stays close to template duration.
   const run = createRun({
-    template_id: "template-1",
+    template_id: "template-6",
     looks: [
-      // Four distinct outfits — each full-body (top + bottom + footwear, sometimes a bag)
-      { product_ids: ["black-top", "skirt", "black-boots"] },                    // monochrome elegant, no bag
-      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers", "purse"] },      // casual streetwear with handbag
-      { product_ids: ["black-top", "baggy-jeans", "black-boots", "satchel-bag"] }, // edgy with shoulder satchel
-      { product_ids: ["blue-tshirt", "skirt", "sneakers"] },                     // playful, no bag
+      { product_ids: ["black-top", "skirt", "black-boots"] },                  // outfit 1 — graffiti wall
+      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers", "purse"] },    // outfit 2 — chain-link fence
+      { product_ids: ["oversized-tee", "grey-trouser", "sneakers"] },          // outfit 3 — red/blue court
     ],
     reference_face_path: facePath,
   });

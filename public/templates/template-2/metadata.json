@@ -49,5 +49,10 @@
   "shot_backgrounds": [
     "Interior view looking out through a modern wooden doorway with glass panels",
     "Exterior view of a modern home with steps and green foliage"
+  ],
+  "outfit_segments": [
+    { "t_start": 0,   "t_end": 1.5, "shot_indices": [0] },
+    { "t_start": 1.5, "t_end": 3.8, "shot_indices": [1] },
+    { "t_start": 3.8, "t_end": 9.1, "shot_indices": [2, 3] }
   ]
 }

@@ -9,8 +9,12 @@ import { inferFramingScope } from "./framing";
 import { judgeKeyframe } from "./judge";
 import { generateVideoFromKeyframe } from "./kling";
 import { generateMultiShotViaSeedance } from "./seedance";
-import { generateViaKieSeedance } from "./kie-seedance";
+import {
+  generateViaKieSeedance,
+  generateMultiShotViaKieSeedance,
+} from "./kie-seedance";
 import { concatClips } from "./concat";
+import { conformClipDuration } from "./clip-conform";
 import { generateMasterSubjectReference } from "./master-subject";
 import { updateRun, getRun } from "./run-store";
 import { uploadToBlob } from "./upload";
@@ -53,6 +57,24 @@ function getVideoProvider(): VideoProvider {
 // without burning credits.
 // ---------------------------------------------------------------------------
 const SKIP_KLING = () => process.env.SKIP_KLING === "true";
+
+// ---------------------------------------------------------------------------
+// kie.ai video strategy — switch between two architectures for comparison.
+//   per_shot_conform   (default) — N kie.ai calls (one per outfit segment),
+//                                  ffmpeg-speed-conform each clip to its true
+//                                  segment span (max 2.5x speedup, trim above),
+//                                  then concat. Robust for any template.
+//   multishot_single_call         — ONE kie.ai call with all outfit keyframes
+//                                  + the full template as reference video, at
+//                                  the template's full duration. Skips concat.
+//                                  Cheaper + faster but relies on Seedance's
+//                                  multi-shot mode honoring outfit transitions.
+// ---------------------------------------------------------------------------
+type KieVideoStrategy = "per_shot_conform" | "multishot_single_call";
+const getKieVideoStrategy = (): KieVideoStrategy => {
+  const v = process.env.KIE_VIDEO_STRATEGY?.trim().toLowerCase();
+  return v === "multishot_single_call" ? "multishot_single_call" : "per_shot_conform";
+};
 
 function loadTemplate(template_id: string): TemplateAsset {
   const dir = resolve("public/templates", template_id);
@@ -98,6 +120,34 @@ function buildProductDescription(p: ProductAsset): string {
   return filtered || p.metadata.overall_description;
 }
 
+// ---------------------------------------------------------------------------
+// Outfit-driven segmentation
+// ---------------------------------------------------------------------------
+//
+// `outfit_segments[]` in template metadata declares the canonical outfit slots
+// for that template. For look N, we use outfit_segments[N % outfit_segments.length].
+//
+// If outfit_segments is missing (legacy metadata), we synthesize a single
+// segment covering the full motion_script — i.e. treat the template as
+// single-outfit. This keeps the pipeline behaving consistently for any
+// template that hasn't been migrated yet.
+function pickOutfitSegment(
+  metadata: TemplateMetadata,
+  look_index: number,
+): { index: number; segment: { t_start: number; t_end: number; shot_indices: number[] } } {
+  const segments = metadata.outfit_segments && metadata.outfit_segments.length > 0
+    ? metadata.outfit_segments
+    : [
+        {
+          t_start: metadata.motion_script[0]?.t_start ?? 0,
+          t_end: metadata.motion_script.at(-1)?.t_end ?? 1,
+          shot_indices: metadata.motion_script.map((_, i) => i),
+        },
+      ];
+  const idx = look_index % segments.length;
+  return { index: idx, segment: segments[idx] };
+}
+
 async function processLook(args: {
   run_id: string;
   look_index: number;
@@ -123,17 +173,16 @@ async function processLook(args: {
   const backgroundForLook = backgrounds[args.look_index % backgrounds.length];
   console.log(`[orchestrator] look ${args.look_index} background: ${backgroundForLook.slice(0, 80)}`);
 
-  // Per-look motion-script slice — only the entries that fall within this
-  // segment's time window (so Gemini's motion_prompt is shot-specific).
-  const SEGMENT_COUNT = 4;
-  const segmentIdx = args.look_index % SEGMENT_COUNT;
-  const totalDuration = args.template.metadata.motion_script.at(-1)?.t_end ?? 1;
-  const segDur = totalDuration / SEGMENT_COUNT;
-  const segStart = segmentIdx * segDur;
-  const segEnd = (segmentIdx + 1) * segDur;
-  const motionScriptForLook = args.template.metadata.motion_script.filter(
-    (e) => e.t_end > segStart && e.t_start < segEnd,
-  );
+  // Per-look slice driven by template.outfit_segments (the canonical outfit
+  // slots for this template). Look N → outfit_segments[N] (capped at length).
+  const segmentPlan = pickOutfitSegment(args.template.metadata, args.look_index);
+  const segmentIdx = segmentPlan.index;
+  const segStart = segmentPlan.segment.t_start;
+  const segEnd = segmentPlan.segment.t_end;
+  const segDur = segEnd - segStart;
+  const motionScriptForLook = segmentPlan.segment.shot_indices
+    .map((i) => args.template.metadata.motion_script[i])
+    .filter(Boolean);
 
   // Stage 4 — orchestrate prompts for THIS look
   updateRun(args.run_id, {
@@ -578,14 +627,68 @@ export async function runPipeline(
     // Each look gets its own keyframe + reference_video call (parallel to Kling).
     // -----------------------------------------------------------------------
     if (provider === "kie_seedance") {
-      console.log("[orchestrator] provider=kie_seedance — using kie.ai per-look path");
+      const kieStrategy = getKieVideoStrategy();
+      console.log(`[orchestrator] provider=kie_seedance strategy=${kieStrategy}`);
 
-      // Template video URL served from Vercel deployment (kie.ai fetches it server-side)
-      const motionReferenceUrl = `${VERCEL_DEPLOYMENT_URL}/${template.video_path}`;
+      // Template video URL served from Vercel deployment (kie.ai fetches it
+      // server-side). For templates not yet deployed to production, set
+      // MOTION_REFERENCE_URL_OVERRIDE to a public Blob URL.
+      const motionReferenceUrl =
+        process.env.MOTION_REFERENCE_URL_OVERRIDE?.trim() ||
+        `${VERCEL_DEPLOYMENT_URL}/${template.video_path}`;
+      if (process.env.MOTION_REFERENCE_URL_OVERRIDE) {
+        console.log(`[orchestrator] using MOTION_REFERENCE_URL_OVERRIDE for template video: ${motionReferenceUrl.slice(0, 100)}`);
+      }
+
+      // Per-product URL overrides for products not yet deployed to production.
+      // PRODUCT_URL_OVERRIDES is a JSON map of {product_id: blob_url}.
+      let productUrlOverrides: Record<string, string> = {};
+      if (process.env.PRODUCT_URL_OVERRIDES) {
+        try {
+          productUrlOverrides = JSON.parse(process.env.PRODUCT_URL_OVERRIDES);
+          console.log(
+            `[orchestrator] using PRODUCT_URL_OVERRIDES for: ${Object.keys(productUrlOverrides).join(", ")}`,
+          );
+        } catch (err) {
+          console.warn(`[orchestrator] PRODUCT_URL_OVERRIDES parse failed: ${(err as Error).message}`);
+        }
+      }
+      const productUrlFor = (p: ProductAsset): string =>
+        productUrlOverrides[p.id] ?? `${VERCEL_DEPLOYMENT_URL}/${p.image_path}`;
 
       const keyframeUrls: string[] = [];
       const clipUrls: string[] = [];
       const clipPaths: string[] = [];
+
+      // Collected only when kieStrategy === "multishot_single_call":
+      // one entry per look — used to build the multi-shot prompt and the
+      // single kie.ai call after the keyframe-only loop completes.
+      const multishotKeyframeBlobUrls: string[] = [];
+      const multishotShotPlan: {
+        outfit_index: number;
+        t_start: number;
+        t_end: number;
+        motion_prompt: string;
+        outfit_description: string;
+      }[] = [];
+      const multishotProductRefSet = new Set<string>();
+
+      // Single-outfit special case — when there's exactly one outfit slot AND
+      // one look, Seedance's reference_video mode auto-detects shot boundaries
+      // from the reference video AND rotates through reference_image_urls
+      // across those perceived shots, which bleeds different outfits when
+      // multiple distinct images are sent. We keep the reference_video (so
+      // motion still matches template choreography) but drop product/identity
+      // refs and send ONLY the keyframe — Seedance has nothing to rotate
+      // through, so the same outfit appears in every perceived shot.
+      const isSingleOutfit =
+        (template.metadata.outfit_segments?.length ?? 1) === 1 &&
+        run.looks.length === 1;
+      if (isSingleOutfit) {
+        console.log(
+          "[orchestrator] single-outfit template + single look — keeping reference_video for motion, but sending ONLY the keyframe as reference image (no identity / product refs) to prevent outfit bleeding while preserving template choreography",
+        );
+      }
 
       for (let i = 0; i < run.looks.length; i++) {
         console.log(`[orchestrator] look ${i} video provider: kie_seedance`);
@@ -605,14 +708,14 @@ export async function runPipeline(
             : ["clean neutral solid backdrop"];
         const backgroundForLook = backgrounds[i % backgrounds.length];
 
-        const segmentIdx = i % 4;
-        const totalDuration = template.metadata.motion_script.at(-1)?.t_end ?? 1;
-        const segDur = totalDuration / 4;
-        const segStart = segmentIdx * segDur;
-        const segEnd = (segmentIdx + 1) * segDur;
-        const motionScriptForLook = template.metadata.motion_script.filter(
-          (e) => e.t_end > segStart && e.t_start < segEnd,
-        );
+        const segmentPlan = pickOutfitSegment(template.metadata, i);
+        const segmentIdx = segmentPlan.index;
+        const segStart = segmentPlan.segment.t_start;
+        const segEnd = segmentPlan.segment.t_end;
+        const segDur = segEnd - segStart;
+        const motionScriptForLook = segmentPlan.segment.shot_indices
+          .map((idx) => template.metadata.motion_script[idx])
+          .filter(Boolean);
 
         const prompts = await orchestratePrompts({
           template: template.metadata,
@@ -710,6 +813,31 @@ export async function runPipeline(
           motionScriptForLook.length > 0
             ? motionScriptForLook.at(-1)!.t_end - motionScriptForLook[0].t_start
             : 5;
+
+        // Build product reference URLs (public deployment, with PRODUCT_URL_OVERRIDES applied per id)
+        const productReferenceUrls = products.map(productUrlFor);
+
+        if (kieStrategy === "multishot_single_call") {
+          // Multishot mode — collect per-shot context and skip per-shot kie.ai calls.
+          // The single multi-shot call happens once after the loop.
+          multishotKeyframeBlobUrls.push(keyframeBlobUrl);
+          multishotShotPlan.push({
+            outfit_index: i,
+            t_start: segStart,
+            t_end: segEnd,
+            motion_prompt: prompts.motion_prompt,
+            outfit_description: products
+              .map((p) => buildProductDescription(p))
+              .join("; "),
+          });
+          for (const u of productReferenceUrls) multishotProductRefSet.add(u);
+          console.log(
+            `[orchestrator][multishot] look ${i} keyframe + plan collected (segment ${segStart.toFixed(2)}-${segEnd.toFixed(2)}s)`,
+          );
+          continue; // skip per-shot call
+        }
+
+        // ── per_shot_conform path (default) ────────────────────────────────
         // kie.ai Seedance accepts integer 4–15s. Clamp + round.
         const targetDurationSeconds = Math.max(
           4,
@@ -717,11 +845,6 @@ export async function runPipeline(
         ) as 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
         console.log(
           `[orchestrator] look ${i} segment_span=${segmentSpan.toFixed(1)}s → requesting ${targetDurationSeconds}s clip`,
-        );
-
-        // Build product reference URLs from the public deployment (no extra upload needed)
-        const productReferenceUrls = products.map(
-          (p) => `${VERCEL_DEPLOYMENT_URL}/${p.image_path}`,
         );
 
         updateRun(run_id, {
@@ -732,8 +855,11 @@ export async function runPipeline(
 
         const kieResult = await generateViaKieSeedance({
           keyframeUrl: keyframeBlobUrl,
-          identityReferenceUrls,
-          productReferenceUrls,
+          // Single-outfit case: keep reference_video for template motion, but
+          // strip identity + product refs so Seedance has only the keyframe
+          // as visual material — no alternative outfits to rotate through.
+          identityReferenceUrls: isSingleOutfit ? undefined : identityReferenceUrls,
+          productReferenceUrls: isSingleOutfit ? undefined : productReferenceUrls,
           motionReferenceUrl,
           motionPrompt: prompts.motion_prompt,
           negativePrompt: prompts.negative_prompt,
@@ -742,18 +868,30 @@ export async function runPipeline(
           resolution: "720p",
         });
 
-        const clipPath = join(runDir, `clip-${i}.mp4`);
-        writeFileSync(clipPath, kieResult.videoBytes);
+        const rawClipPath = join(runDir, `clip-${i}-raw.mp4`);
+        writeFileSync(rawClipPath, kieResult.videoBytes);
 
         // Log actual vs requested duration
         const actualDuration = await new Promise<number>((resolve) => {
-          ffmpeg.ffprobe(clipPath, (err, data) => {
+          ffmpeg.ffprobe(rawClipPath, (err, data) => {
             if (err) return resolve(0);
             resolve(data.format?.duration ?? 0);
           });
         });
         console.log(
           `[orchestrator] look ${i} duration check: requested=${targetDurationSeconds}s actual=${actualDuration.toFixed(2)}s`,
+        );
+
+        // Speed-conform the clip so its duration matches the segment's true span.
+        const clipPath = join(runDir, `clip-${i}.mp4`);
+        const conform = await conformClipDuration({
+          inputPath: rawClipPath,
+          outputPath: clipPath,
+          actualDurationSeconds: actualDuration,
+          targetDurationSeconds: segmentSpan,
+        });
+        console.log(
+          `[orchestrator] look ${i} conform: target=${segmentSpan.toFixed(2)}s, speedup=${conform.speedupApplied.toFixed(2)}x${conform.trimmed ? " (trimmed)" : ""}, final=${conform.finalDurationSeconds.toFixed(2)}s`,
         );
 
         clipPaths.push(clipPath);
@@ -777,7 +915,169 @@ export async function runPipeline(
         });
       }
 
-      // Concat all per-look clips + mux template audio
+      // ── multishot_single_call path: ONE kie.ai call after all keyframes ──
+      if (kieStrategy === "multishot_single_call") {
+        if (multishotKeyframeBlobUrls.length === 0) {
+          throw new Error("[orchestrator][multishot] no keyframes collected");
+        }
+        const fullDuration = template.metadata.motion_script.at(-1)?.t_end ?? 5;
+        const requestDuration = Math.max(
+          4,
+          Math.min(15, Math.round(fullDuration)),
+        ) as 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
+
+        // Single-outfit fallback: don't use the multishot function (which
+        // requires reference_video and would trigger outfit bleeding).
+        // Use the simple first_frame_url path with no reference video.
+        if (isSingleOutfit) {
+          updateRun(run_id, {
+            status: "generating_video",
+            progress_label: `Rendering single-outfit video (1 call, ${requestDuration}s)…`,
+          });
+          const simpleResult = await generateViaKieSeedance({
+            keyframeUrl: multishotKeyframeBlobUrls[0],
+            // Keep reference_video for template motion choreography. Drop
+            // identity + product refs so Seedance only has the keyframe as
+            // visual material — same outfit reused across all perceived shots.
+            motionReferenceUrl,
+            motionPrompt: multishotShotPlan[0].motion_prompt,
+            durationSeconds: requestDuration,
+            aspectRatio: "9:16",
+            resolution: "720p",
+          });
+          const rawSinglePath = join(runDir, "kie-multishot-raw.mp4");
+          writeFileSync(rawSinglePath, simpleResult.videoBytes);
+          const actualDur = await new Promise<number>((resolve) => {
+            ffmpeg.ffprobe(rawSinglePath, (err, data) => {
+              if (err) return resolve(0);
+              resolve(data.format?.duration ?? 0);
+            });
+          });
+          console.log(
+            `[orchestrator][multishot] single-outfit kie.ai returned ${actualDur.toFixed(2)}s clip (target = ${fullDuration.toFixed(2)}s)`,
+          );
+          const conformedSinglePath = join(runDir, "kie-multishot-conformed.mp4");
+          await conformClipDuration({
+            inputPath: rawSinglePath,
+            outputPath: conformedSinglePath,
+            actualDurationSeconds: actualDur,
+            targetDurationSeconds: fullDuration,
+          });
+          updateRun(run_id, {
+            status: "concatenating",
+            progress_label: "Muxing template audio…",
+          });
+          const finalPathSingle = join(runDir, "output.mp4");
+          const templateVideoPathSingle = resolve("public", template.video_path);
+          await concatClips([conformedSinglePath], finalPathSingle, templateVideoPathSingle);
+          ffmpeg.ffprobe(finalPathSingle, (err, data) => {
+            if (err) return;
+            console.log(
+              `[orchestrator][multishot] final mp4 verify — duration=${data.format?.duration}s, streams=${data.streams?.length}`,
+            );
+          });
+          return updateRun(run_id, {
+            status: "succeeded",
+            video_url: `/runs/${run_id}/output.mp4`,
+          });
+        }
+
+        // Build the comprehensive prompt with per-shot timestamps + outfits.
+        // STRICT outfit-to-shot binding language is the only lever we have
+        // against Seedance's tendency to redistribute reference_image_urls
+        // across perceived shots based on visual weight (longer/repeated
+        // settings hijack outfits assigned to short/unique settings).
+        const shotLines = multishotShotPlan.map((s, idx) => {
+          const action = s.motion_prompt
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 350);
+          return [
+            `SHOT ${idx + 1} (${s.t_start.toFixed(1)}-${s.t_end.toFixed(1)}s):`,
+            `  - The subject wears the EXACT outfit shown in keyframe ${idx + 1} — ${s.outfit_description}.`,
+            `  - This outfit is LOCKED to this shot's timestamp range and MUST appear in every frame within it.`,
+            `  - This outfit MUST NEVER appear in any other shot's timestamp range. If you find yourself rendering this outfit at a timestamp outside ${s.t_start.toFixed(1)}-${s.t_end.toFixed(1)}s, that is INCORRECT.`,
+            `  - Action: ${action}`,
+          ].join("\n");
+        });
+        const multishotPrompt = [
+          `Multi-shot fashion video, ${fullDuration.toFixed(1)} seconds total, ${multishotShotPlan.length} shots.`,
+          "The subject changes outfits across the shots — match the reference video's shot structure and timing exactly.",
+          "Use jump cuts at the timestamps below to swap outfits. Keep the same person identity (face, body, hair) consistent across all shots.",
+          "",
+          "STRICT OUTFIT-TO-SHOT BINDING (highest priority):",
+          "Each keyframe's outfit is bound to exactly ONE shot's timestamp range. The model MUST NOT redistribute, blend, swap, or repeat outfits across shots — even if some shots are short or some settings are revisited later in the reference video. Short or unique-setting shots must still show their assigned outfit; do not give those shots' outfits to longer or revisited shots.",
+          "",
+          ...shotLines,
+          "",
+          "Identity match to the reference images is the absolute highest priority. Outfit-to-shot binding is the second highest priority — outranking motion fidelity and scene reproduction. Each shot must show the subject wearing the outfit assigned to that shot — do not blend or swap outfits between shots, ever.",
+        ].join("\n");
+
+        console.log(
+          `[orchestrator][multishot] requesting ${requestDuration}s clip across ${multishotShotPlan.length} shots; prompt preview: ${multishotPrompt.slice(0, 250).replace(/\n/g, " ⏎ ")}`,
+        );
+
+        updateRun(run_id, {
+          status: "generating_video",
+          progress_label: `Rendering multi-shot video (1 call, ${requestDuration}s)…`,
+        });
+
+        const multishotResult = await generateMultiShotViaKieSeedance({
+          keyframeUrls: multishotKeyframeBlobUrls,
+          identityReferenceUrls,
+          productReferenceUrls: Array.from(multishotProductRefSet),
+          motionReferenceUrl,
+          motionPrompt: multishotPrompt,
+          durationSeconds: requestDuration,
+          aspectRatio: "9:16",
+          resolution: "720p",
+        });
+
+        const rawSinglePath = join(runDir, "kie-multishot-raw.mp4");
+        writeFileSync(rawSinglePath, multishotResult.videoBytes);
+        const actualDur = await new Promise<number>((resolve) => {
+          ffmpeg.ffprobe(rawSinglePath, (err, data) => {
+            if (err) return resolve(0);
+            resolve(data.format?.duration ?? 0);
+          });
+        });
+        console.log(
+          `[orchestrator][multishot] kie.ai returned ${actualDur.toFixed(2)}s clip (target full template = ${fullDuration.toFixed(2)}s)`,
+        );
+
+        // Conform to true template duration (handles +0.04s overshoot from kie.ai)
+        const conformedSinglePath = join(runDir, "kie-multishot-conformed.mp4");
+        await conformClipDuration({
+          inputPath: rawSinglePath,
+          outputPath: conformedSinglePath,
+          actualDurationSeconds: actualDur,
+          targetDurationSeconds: fullDuration,
+        });
+
+        // Mux template audio onto the single clip via concatClips (it short-circuits
+        // single-input to copyFileSync + handles audio mux)
+        updateRun(run_id, {
+          status: "concatenating",
+          progress_label: "Muxing template audio…",
+        });
+        const finalPathMs = join(runDir, "output.mp4");
+        const templateVideoPathMs = resolve("public", template.video_path);
+        await concatClips([conformedSinglePath], finalPathMs, templateVideoPathMs);
+
+        ffmpeg.ffprobe(finalPathMs, (err, data) => {
+          if (err) return;
+          console.log(
+            `[orchestrator][multishot] final mp4 verify — duration=${data.format?.duration}s, streams=${data.streams?.length}`,
+          );
+        });
+
+        return updateRun(run_id, {
+          status: "succeeded",
+          video_url: `/runs/${run_id}/output.mp4`,
+        });
+      }
+
+      // ── per_shot_conform path (default): concat all per-look clips + audio ──
       updateRun(run_id, {
         status: "concatenating",
         progress_label: "Stitching final video…",

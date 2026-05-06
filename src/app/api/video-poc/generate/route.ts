@@ -1,9 +1,10 @@
 // src/app/api/video-poc/generate/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { createRun } from "@/lib/pipeline/run-store";
 import { runPipeline } from "@/lib/pipeline/orchestrator";
+import type { TemplateMetadata } from "@/lib/pipeline/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 min, matches Kling poll budget
@@ -16,8 +17,25 @@ export async function POST(req: NextRequest) {
     if (!template_id || typeof template_id !== "string") {
       return NextResponse.json({ error: "template_id required" }, { status: 400 });
     }
-    if (!Array.isArray(looks) || looks.length < 1 || looks.length > 4) {
-      return NextResponse.json({ error: "looks must be array of 1–4 items" }, { status: 400 });
+    if (!Array.isArray(looks) || looks.length < 1) {
+      return NextResponse.json({ error: "looks must be array of at least 1 item" }, { status: 400 });
+    }
+
+    // Cap looks to the template's outfit_segments count.
+    let templateMeta: TemplateMetadata;
+    try {
+      templateMeta = JSON.parse(
+        readFileSync(resolve("public/templates", template_id, "metadata.json"), "utf-8"),
+      ) as TemplateMetadata;
+    } catch {
+      return NextResponse.json({ error: `unknown template_id: ${template_id}` }, { status: 400 });
+    }
+    const maxLooks = Math.max(1, templateMeta.outfit_segments?.length ?? 1);
+    if (looks.length > maxLooks) {
+      return NextResponse.json(
+        { error: `template ${template_id} supports up to ${maxLooks} outfit${maxLooks > 1 ? "s" : ""} (got ${looks.length})` },
+        { status: 400 },
+      );
     }
     for (const look of looks) {
       if (

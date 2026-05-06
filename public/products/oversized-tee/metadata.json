@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "t-shirt",
+  "items": [
+    {
+      "item_type": "t-shirt",
+      "attachment_strategy": "worn_on_torso",
+      "side_preference": "none",
+      "visual_description": "A black, short-sleeved, oversized t-shirt with a crewneck collar. It features a large graphic print on the front of an anime-style girl with teal hair and pink eyes, winking while eating a bar of chocolate. The brand tag 'SHARK SHIRTS' is visible on the inside collar."
+    }
+  ],
+  "overall_description": "This is a black oversized t-shirt featuring a prominent, colorful anime-style graphic on the chest. The graphic depicts a girl with short teal hair, winking and blushing while eating a bar of chocolate. The t-shirt has a classic crewneck and short sleeves, presented flat against a white background.",
+  "key_features": [
+    "Oversized fit",
+    "Solid black color",
+    "Large anime girl graphic",
+    "Crewneck collar",
+    "Short sleeves"
+  ]
+}

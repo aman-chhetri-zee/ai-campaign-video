@@ -18,6 +18,7 @@ type Template = {
   id: string;
   video_url: string;
   first_frame_url: string;
+  outfit_slots: number;
 };
 
 type RunStatusResponse = {
@@ -333,11 +334,24 @@ export default function VideoPocPage() {
     );
   }
 
+  const selectedTemplate = templates.find((t) => t.id === templateId);
+  const maxLooks = selectedTemplate ? Math.min(4, selectedTemplate.outfit_slots) : 4;
+
   function addLook() {
-    if (looks.length >= 4) return;
+    if (looks.length >= maxLooks) return;
     setLooks((prev) => [...prev, { product_ids: [] }]);
     setActiveLookIndex(looks.length);
   }
+
+  // Trim looks when the user picks a template that supports fewer outfits than they currently have.
+  useEffect(() => {
+    if (!selectedTemplate) return;
+    if (looks.length > maxLooks) {
+      setLooks((prev) => prev.slice(0, maxLooks));
+      setActiveLookIndex((prev) => Math.min(prev, maxLooks - 1));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateId]);
 
   function removeLook(i: number) {
     setLooks((prev) => {
@@ -591,12 +605,20 @@ export default function VideoPocPage() {
 
               <button
                 type="button"
-                disabled={looks.length >= 4}
+                disabled={looks.length >= maxLooks}
                 onClick={addLook}
+                title={
+                  selectedTemplate
+                    ? `This template supports up to ${selectedTemplate.outfit_slots} outfit${selectedTemplate.outfit_slots === 1 ? "" : "s"}`
+                    : "Pick a template first"
+                }
                 className="flex items-center gap-2 px-4 py-2.5 text-sm border-2 border-dashed border-zinc-700 rounded-xl text-zinc-500 hover:border-blue-500/50 hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Add Look
+                {selectedTemplate && (
+                  <span className="text-xs text-zinc-600">({looks.length}/{maxLooks})</span>
+                )}
               </button>
             </div>
 

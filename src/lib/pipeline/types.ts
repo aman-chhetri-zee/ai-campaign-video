@@ -14,6 +14,12 @@ export type TemplateStyle = {
   special_effects: string[];       // e.g. ["ghosting trails", "RGB chromatic aberration", "flicker", "lens flare"]
 };
 
+export type OutfitSegment = {
+  t_start: number;            // segment start in template seconds
+  t_end: number;              // segment end in template seconds
+  shot_indices: number[];     // motion_script entry indices that this outfit slot covers
+};
+
 export type TemplateMetadata = {
   scene_description: string;
   subject: {
@@ -23,11 +29,11 @@ export type TemplateMetadata = {
   };
   motion_script: MotionScriptEntry[];
   composition_notes: string;
-  // NEW
   style: TemplateStyle;
   pose_archetypes: string[];       // e.g. ["playful", "cool", "cute", "surprised", "stylish"]
   energy: string;                  // e.g. "high-energy fast-cut montage", "slow cinematic", "punchy"
-  shot_backgrounds: string[];      // NEW — short descriptions of DISTINCT backgrounds across the template's shots, in order
+  shot_backgrounds: string[];      // short descriptions of DISTINCT backgrounds across the template's shots, in order
+  outfit_segments: OutfitSegment[]; // outfit slots in this template — drives per-look segmentation in the orchestrator
 };
 
 // ----- Stage 2 output -----
