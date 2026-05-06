@@ -651,19 +651,19 @@ export async function runPipeline(
       const multishotProductRefSet = new Set<string>();
 
       // Single-outfit special case — when there's exactly one outfit slot AND
-      // one look, kie.ai's reference_video mode would still trigger multi-shot
-      // composition (Seedance auto-detects shot boundaries from visual content
-      // changes in the reference video and rotates through reference_image_urls
-      // across those perceived shots — bleeding different outfits across shots
-      // even though the user provided only one). To avoid this, we drop the
-      // reference video entirely and use first_frame_url mode: Seedance
-      // animates the keyframe per the prompt without multi-shot composition.
+      // one look, Seedance's reference_video mode auto-detects shot boundaries
+      // from the reference video AND rotates through reference_image_urls
+      // across those perceived shots, which bleeds different outfits when
+      // multiple distinct images are sent. We keep the reference_video (so
+      // motion still matches template choreography) but drop product/identity
+      // refs and send ONLY the keyframe — Seedance has nothing to rotate
+      // through, so the same outfit appears in every perceived shot.
       const isSingleOutfit =
         (template.metadata.outfit_segments?.length ?? 1) === 1 &&
         run.looks.length === 1;
       if (isSingleOutfit) {
         console.log(
-          "[orchestrator] single-outfit template + single look — using first_frame_url mode (no reference_video, no product refs) to prevent outfit bleeding",
+          "[orchestrator] single-outfit template + single look — keeping reference_video for motion, but sending ONLY the keyframe as reference image (no identity / product refs) to prevent outfit bleeding while preserving template choreography",
         );
       }
 
@@ -834,13 +834,12 @@ export async function runPipeline(
 
         const kieResult = await generateViaKieSeedance({
           keyframeUrl: keyframeBlobUrl,
-          // For single-outfit single-look runs, drop the reference_video AND
-          // identity/product refs — first_frame_url mode (no extra refs) is
-          // the only way to keep Seedance from composing a multi-shot output
-          // with bleeding outfits.
+          // Single-outfit case: keep reference_video for template motion, but
+          // strip identity + product refs so Seedance has only the keyframe
+          // as visual material — no alternative outfits to rotate through.
           identityReferenceUrls: isSingleOutfit ? undefined : identityReferenceUrls,
           productReferenceUrls: isSingleOutfit ? undefined : productReferenceUrls,
-          motionReferenceUrl: isSingleOutfit ? undefined : motionReferenceUrl,
+          motionReferenceUrl,
           motionPrompt: prompts.motion_prompt,
           negativePrompt: prompts.negative_prompt,
           durationSeconds: targetDurationSeconds,
@@ -916,7 +915,10 @@ export async function runPipeline(
           });
           const simpleResult = await generateViaKieSeedance({
             keyframeUrl: multishotKeyframeBlobUrls[0],
-            // No identity/product/motion refs — first_frame_url mode only.
+            // Keep reference_video for template motion choreography. Drop
+            // identity + product refs so Seedance only has the keyframe as
+            // visual material — same outfit reused across all perceived shots.
+            motionReferenceUrl,
             motionPrompt: multishotShotPlan[0].motion_prompt,
             durationSeconds: requestDuration,
             aspectRatio: "9:16",
