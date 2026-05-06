@@ -9,7 +9,10 @@ import { inferFramingScope } from "./framing";
 import { judgeKeyframe } from "./judge";
 import { generateVideoFromKeyframe } from "./kling";
 import { generateMultiShotViaSeedance } from "./seedance";
-import { generateViaKieSeedance } from "./kie-seedance";
+import {
+  generateViaKieSeedance,
+  generateMultiShotViaKieSeedance,
+} from "./kie-seedance";
 import { concatClips } from "./concat";
 import { conformClipDuration } from "./clip-conform";
 import { generateMasterSubjectReference } from "./master-subject";
@@ -624,7 +627,8 @@ export async function runPipeline(
     // Each look gets its own keyframe + reference_video call (parallel to Kling).
     // -----------------------------------------------------------------------
     if (provider === "kie_seedance") {
-      console.log("[orchestrator] provider=kie_seedance — using kie.ai per-look path");
+      const kieStrategy = getKieVideoStrategy();
+      console.log(`[orchestrator] provider=kie_seedance strategy=${kieStrategy}`);
 
       // Template video URL served from Vercel deployment (kie.ai fetches it server-side)
       const motionReferenceUrl = `${VERCEL_DEPLOYMENT_URL}/${template.video_path}`;
@@ -632,6 +636,19 @@ export async function runPipeline(
       const keyframeUrls: string[] = [];
       const clipUrls: string[] = [];
       const clipPaths: string[] = [];
+
+      // Collected only when kieStrategy === "multishot_single_call":
+      // one entry per look — used to build the multi-shot prompt and the
+      // single kie.ai call after the keyframe-only loop completes.
+      const multishotKeyframeBlobUrls: string[] = [];
+      const multishotShotPlan: {
+        outfit_index: number;
+        t_start: number;
+        t_end: number;
+        motion_prompt: string;
+        outfit_description: string;
+      }[] = [];
+      const multishotProductRefSet = new Set<string>();
 
       for (let i = 0; i < run.looks.length; i++) {
         console.log(`[orchestrator] look ${i} video provider: kie_seedance`);
@@ -756,6 +773,33 @@ export async function runPipeline(
           motionScriptForLook.length > 0
             ? motionScriptForLook.at(-1)!.t_end - motionScriptForLook[0].t_start
             : 5;
+
+        // Build product reference URLs from the public deployment (no extra upload needed)
+        const productReferenceUrls = products.map(
+          (p) => `${VERCEL_DEPLOYMENT_URL}/${p.image_path}`,
+        );
+
+        if (kieStrategy === "multishot_single_call") {
+          // Multishot mode — collect per-shot context and skip per-shot kie.ai calls.
+          // The single multi-shot call happens once after the loop.
+          multishotKeyframeBlobUrls.push(keyframeBlobUrl);
+          multishotShotPlan.push({
+            outfit_index: i,
+            t_start: segStart,
+            t_end: segEnd,
+            motion_prompt: prompts.motion_prompt,
+            outfit_description: products
+              .map((p) => buildProductDescription(p))
+              .join("; "),
+          });
+          for (const u of productReferenceUrls) multishotProductRefSet.add(u);
+          console.log(
+            `[orchestrator][multishot] look ${i} keyframe + plan collected (segment ${segStart.toFixed(2)}-${segEnd.toFixed(2)}s)`,
+          );
+          continue; // skip per-shot call
+        }
+
+        // ── per_shot_conform path (default) ────────────────────────────────
         // kie.ai Seedance accepts integer 4–15s. Clamp + round.
         const targetDurationSeconds = Math.max(
           4,
@@ -763,11 +807,6 @@ export async function runPipeline(
         ) as 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
         console.log(
           `[orchestrator] look ${i} segment_span=${segmentSpan.toFixed(1)}s → requesting ${targetDurationSeconds}s clip`,
-        );
-
-        // Build product reference URLs from the public deployment (no extra upload needed)
-        const productReferenceUrls = products.map(
-          (p) => `${VERCEL_DEPLOYMENT_URL}/${p.image_path}`,
         );
 
         updateRun(run_id, {
@@ -803,8 +842,6 @@ export async function runPipeline(
         );
 
         // Speed-conform the clip so its duration matches the segment's true span.
-        // kie.ai's 4s minimum often inflates short segments — without this, output
-        // ends up longer than the template (e.g. template-2 = 9.1s segments → 13s output).
         const clipPath = join(runDir, `clip-${i}.mp4`);
         const conform = await conformClipDuration({
           inputPath: rawClipPath,
@@ -837,7 +874,100 @@ export async function runPipeline(
         });
       }
 
-      // Concat all per-look clips + mux template audio
+      // ── multishot_single_call path: ONE kie.ai call after all keyframes ──
+      if (kieStrategy === "multishot_single_call") {
+        if (multishotKeyframeBlobUrls.length === 0) {
+          throw new Error("[orchestrator][multishot] no keyframes collected");
+        }
+        const fullDuration = template.metadata.motion_script.at(-1)?.t_end ?? 5;
+        const requestDuration = Math.max(
+          4,
+          Math.min(15, Math.round(fullDuration)),
+        ) as 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
+
+        // Build the comprehensive prompt with per-shot timestamps + outfits
+        const shotLines = multishotShotPlan.map((s, idx) => {
+          const action = s.motion_prompt
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 350);
+          return `SHOT ${idx + 1} (${s.t_start.toFixed(1)}-${s.t_end.toFixed(1)}s, the subject wears the outfit shown in keyframe ${idx + 1}: ${s.outfit_description}). Action: ${action}`;
+        });
+        const multishotPrompt = [
+          `Multi-shot fashion video, ${fullDuration.toFixed(1)} seconds total, ${multishotShotPlan.length} shots.`,
+          "The subject changes outfits across the shots — match the reference video's shot structure and timing exactly.",
+          "Use jump cuts at the timestamps below to swap outfits. Keep the same person identity (face, body, hair) consistent across all shots.",
+          "",
+          ...shotLines,
+          "",
+          "Identity match to the reference images is the absolute highest priority. Each shot must show the subject wearing the outfit assigned to that shot — do not blend or swap outfits between shots.",
+        ].join("\n");
+
+        console.log(
+          `[orchestrator][multishot] requesting ${requestDuration}s clip across ${multishotShotPlan.length} shots; prompt preview: ${multishotPrompt.slice(0, 250).replace(/\n/g, " ⏎ ")}`,
+        );
+
+        updateRun(run_id, {
+          status: "generating_video",
+          progress_label: `Rendering multi-shot video (1 call, ${requestDuration}s)…`,
+        });
+
+        const multishotResult = await generateMultiShotViaKieSeedance({
+          keyframeUrls: multishotKeyframeBlobUrls,
+          identityReferenceUrls,
+          productReferenceUrls: Array.from(multishotProductRefSet),
+          motionReferenceUrl,
+          motionPrompt: multishotPrompt,
+          durationSeconds: requestDuration,
+          aspectRatio: "9:16",
+          resolution: "720p",
+        });
+
+        const rawSinglePath = join(runDir, "kie-multishot-raw.mp4");
+        writeFileSync(rawSinglePath, multishotResult.videoBytes);
+        const actualDur = await new Promise<number>((resolve) => {
+          ffmpeg.ffprobe(rawSinglePath, (err, data) => {
+            if (err) return resolve(0);
+            resolve(data.format?.duration ?? 0);
+          });
+        });
+        console.log(
+          `[orchestrator][multishot] kie.ai returned ${actualDur.toFixed(2)}s clip (target full template = ${fullDuration.toFixed(2)}s)`,
+        );
+
+        // Conform to true template duration (handles +0.04s overshoot from kie.ai)
+        const conformedSinglePath = join(runDir, "kie-multishot-conformed.mp4");
+        await conformClipDuration({
+          inputPath: rawSinglePath,
+          outputPath: conformedSinglePath,
+          actualDurationSeconds: actualDur,
+          targetDurationSeconds: fullDuration,
+        });
+
+        // Mux template audio onto the single clip via concatClips (it short-circuits
+        // single-input to copyFileSync + handles audio mux)
+        updateRun(run_id, {
+          status: "concatenating",
+          progress_label: "Muxing template audio…",
+        });
+        const finalPathMs = join(runDir, "output.mp4");
+        const templateVideoPathMs = resolve("public", template.video_path);
+        await concatClips([conformedSinglePath], finalPathMs, templateVideoPathMs);
+
+        ffmpeg.ffprobe(finalPathMs, (err, data) => {
+          if (err) return;
+          console.log(
+            `[orchestrator][multishot] final mp4 verify — duration=${data.format?.duration}s, streams=${data.streams?.length}`,
+          );
+        });
+
+        return updateRun(run_id, {
+          status: "succeeded",
+          video_url: `/runs/${run_id}/output.mp4`,
+        });
+      }
+
+      // ── per_shot_conform path (default): concat all per-look clips + audio ──
       updateRun(run_id, {
         status: "concatenating",
         progress_label: "Stitching final video…",

@@ -44,72 +44,13 @@ async function fetchKie(
 }
 
 /**
- * Generate a video via kie.ai's bytedance/seedance-2 multimodal mode.
- * Uses keyframe as reference_image_urls[0] and template as reference_video_urls[0].
- * Falls back to first_frame_url mode if no motionReferenceUrl is provided
- * (mutually exclusive with reference_video_urls per kie.ai's API).
- *
- * Additional identity anchors (master subject, original creator face) and product
- * images can be passed via identityReferenceUrls and productReferenceUrls.
- * kie.ai Seedance accepts up to 9 reference_image_urls — we dedupe + cap at 9.
+ * Internal helper — POST createTask + poll recordInfo + download the result mp4.
+ * Shared by per-shot and multi-shot public functions.
  */
-export async function generateViaKieSeedance(input: {
-  keyframeUrl: string;
-  /** ADDITIONAL reference images (master subject, original creator photo, product images)
-   *  to anchor identity AND product fidelity in the generated video. */
-  identityReferenceUrls?: string[];      // master + original creator face URLs
-  productReferenceUrls?: string[];       // product images for visual consistency
-  motionReferenceUrl?: string;
-  motionPrompt: string;
-  negativePrompt?: string;
-  durationSeconds?: 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
-  aspectRatio?: "9:16" | "16:9" | "1:1" | "4:3" | "3:4" | "21:9";
-  resolution?: "480p" | "720p" | "1080p";
+async function submitAndPollKieTask(body: {
+  model: string;
+  input: Record<string, unknown>;
 }): Promise<{ videoBytes: Buffer; videoUrl: string }> {
-  const model = getModelId();
-  const resolution = input.resolution ?? getResolution();
-  const aspectRatio = input.aspectRatio ?? "9:16";
-  const duration = input.durationSeconds ?? 5;
-
-  // Build the deduplicated, capped reference image list:
-  // keyframe first, then identity anchors, then product images (max 9 per kie.ai cap)
-  const allRefImages = [
-    input.keyframeUrl,
-    ...(input.identityReferenceUrls ?? []),
-    ...(input.productReferenceUrls ?? []),
-  ].filter((u, i, a) => a.indexOf(u) === i).slice(0, 9); // dedupe + cap at 9
-
-  console.log(
-    `[kie-seedance] sending ${allRefImages.length} reference images (1 keyframe + ${input.identityReferenceUrls?.length ?? 0} identity + ${input.productReferenceUrls?.length ?? 0} products)`,
-  );
-
-  // Build input — multimodal if motionReferenceUrl given, else first_frame mode
-  const reqInput: Record<string, unknown> = {
-    prompt: input.motionPrompt,
-    resolution,
-    aspect_ratio: aspectRatio,
-    duration,
-    generate_audio: false, // we mux template audio ourselves
-    nsfw_checker: false,
-  };
-  if (input.motionReferenceUrl) {
-    reqInput.reference_image_urls = allRefImages;
-    reqInput.reference_video_urls = [input.motionReferenceUrl];
-  } else {
-    // first_frame mode: use keyframe as first_frame_url; skip extra refs as
-    // kie.ai docs do not allow reference_image_urls alongside first_frame_url.
-    reqInput.first_frame_url = input.keyframeUrl;
-  }
-
-  const body = { model, input: reqInput };
-
-  console.log(
-    `[kie-seedance] submitting model=${model} resolution=${resolution} aspect=${aspectRatio} duration=${duration}s ` +
-      `keyframe=${input.keyframeUrl.slice(0, 80)} ` +
-      `reference_video=${input.motionReferenceUrl?.slice(0, 80) ?? "<none — first_frame mode>"}`,
-  );
-
-  // Submit with retry for transient network blips
   const submit = await withRetry(
     () =>
       fetchKie("/api/v1/jobs/createTask", {
@@ -127,7 +68,6 @@ export async function generateViaKieSeedance(input: {
   const taskId: string = submit.json.data.taskId;
   console.log(`[kie-seedance] task submitted: ${taskId}`);
 
-  // Poll until success/fail
   for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     const poll = await fetchKie(`/api/v1/jobs/recordInfo?taskId=${taskId}`);
@@ -168,4 +108,127 @@ export async function generateViaKieSeedance(input: {
   throw new Error(
     `[kie-seedance] polling exceeded ${POLL_MAX_ATTEMPTS} attempts`,
   );
+}
+
+/**
+ * Generate a video via kie.ai's bytedance/seedance-2 multimodal mode.
+ * Uses keyframe as reference_image_urls[0] and template as reference_video_urls[0].
+ * Falls back to first_frame_url mode if no motionReferenceUrl is provided
+ * (mutually exclusive with reference_video_urls per kie.ai's API).
+ *
+ * Additional identity anchors (master subject, original creator face) and product
+ * images can be passed via identityReferenceUrls and productReferenceUrls.
+ * kie.ai Seedance accepts up to 9 reference_image_urls — we dedupe + cap at 9.
+ */
+export async function generateViaKieSeedance(input: {
+  keyframeUrl: string;
+  /** ADDITIONAL reference images (master subject, original creator photo, product images)
+   *  to anchor identity AND product fidelity in the generated video. */
+  identityReferenceUrls?: string[];      // master + original creator face URLs
+  productReferenceUrls?: string[];       // product images for visual consistency
+  motionReferenceUrl?: string;
+  motionPrompt: string;
+  negativePrompt?: string;
+  durationSeconds?: 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
+  aspectRatio?: "9:16" | "16:9" | "1:1" | "4:3" | "3:4" | "21:9";
+  resolution?: "480p" | "720p" | "1080p";
+}): Promise<{ videoBytes: Buffer; videoUrl: string }> {
+  const model = getModelId();
+  const resolution = input.resolution ?? getResolution();
+  const aspectRatio = input.aspectRatio ?? "9:16";
+  const duration = input.durationSeconds ?? 5;
+
+  const allRefImages = [
+    input.keyframeUrl,
+    ...(input.identityReferenceUrls ?? []),
+    ...(input.productReferenceUrls ?? []),
+  ].filter((u, i, a) => a.indexOf(u) === i).slice(0, 9);
+
+  console.log(
+    `[kie-seedance] sending ${allRefImages.length} reference images (1 keyframe + ${input.identityReferenceUrls?.length ?? 0} identity + ${input.productReferenceUrls?.length ?? 0} products)`,
+  );
+
+  const reqInput: Record<string, unknown> = {
+    prompt: input.motionPrompt,
+    resolution,
+    aspect_ratio: aspectRatio,
+    duration,
+    generate_audio: false,
+    nsfw_checker: false,
+  };
+  if (input.motionReferenceUrl) {
+    reqInput.reference_image_urls = allRefImages;
+    reqInput.reference_video_urls = [input.motionReferenceUrl];
+  } else {
+    reqInput.first_frame_url = input.keyframeUrl;
+  }
+
+  console.log(
+    `[kie-seedance] submitting model=${model} resolution=${resolution} aspect=${aspectRatio} duration=${duration}s ` +
+      `keyframe=${input.keyframeUrl.slice(0, 80)} ` +
+      `reference_video=${input.motionReferenceUrl?.slice(0, 80) ?? "<none — first_frame mode>"}`,
+  );
+
+  return submitAndPollKieTask({ model, input: reqInput });
+}
+
+/**
+ * Generate a SINGLE multi-shot video that swaps outfits across the template's
+ * jump cuts in one kie.ai call. Pass one keyframe per outfit slot (in shot
+ * order) plus the full template as the motion reference video.
+ *
+ * Seedance composes the multi-shot output structure from the reference_video,
+ * picking visual material from the supplied reference_image_urls. Outfit
+ * alignment to specific shots is steered by the prompt — kie.ai docs do not
+ * promise per-image-to-shot mapping, so the prompt must spell out which
+ * outfit appears in which shot with timestamps.
+ */
+export async function generateMultiShotViaKieSeedance(input: {
+  /** One keyframe per outfit slot, in shot order. */
+  keyframeUrls: string[];
+  /** Identity anchors (master subject, original creator photo). */
+  identityReferenceUrls?: string[];
+  /** Optional unique product image URLs (deduped across all looks). */
+  productReferenceUrls?: string[];
+  /** Full template video URL — drives shot structure and motion timing. */
+  motionReferenceUrl: string;
+  /** Comprehensive prompt with per-shot timestamps and outfit assignments. */
+  motionPrompt: string;
+  durationSeconds: 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
+  aspectRatio?: "9:16" | "16:9" | "1:1";
+  resolution?: "480p" | "720p" | "1080p";
+}): Promise<{ videoBytes: Buffer; videoUrl: string }> {
+  const model = getModelId();
+  const resolution = input.resolution ?? getResolution();
+  const aspectRatio = input.aspectRatio ?? "9:16";
+
+  // Build deduped, capped reference image list (kie.ai max 9):
+  // keyframes first (each carries an outfit), then identity, then products.
+  const allRefImages = [
+    ...input.keyframeUrls,
+    ...(input.identityReferenceUrls ?? []),
+    ...(input.productReferenceUrls ?? []),
+  ].filter((u, i, a) => a.indexOf(u) === i).slice(0, 9);
+
+  console.log(
+    `[kie-seedance][multishot] sending ${allRefImages.length} reference images (${input.keyframeUrls.length} keyframes + ${input.identityReferenceUrls?.length ?? 0} identity + ${input.productReferenceUrls?.length ?? 0} products, deduped/capped to 9)`,
+  );
+
+  const reqInput: Record<string, unknown> = {
+    prompt: input.motionPrompt,
+    resolution,
+    aspect_ratio: aspectRatio,
+    duration: input.durationSeconds,
+    generate_audio: false,
+    nsfw_checker: false,
+    reference_image_urls: allRefImages,
+    reference_video_urls: [input.motionReferenceUrl],
+  };
+
+  console.log(
+    `[kie-seedance][multishot] submitting model=${model} resolution=${resolution} aspect=${aspectRatio} duration=${input.durationSeconds}s ` +
+      `keyframes=${input.keyframeUrls.length} reference_video=${input.motionReferenceUrl.slice(0, 80)}`,
+  );
+
+  return submitAndPollKieTask({ model, input: reqInput });
 }
