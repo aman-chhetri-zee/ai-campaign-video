@@ -7,18 +7,17 @@ import { runPipeline } from "../src/lib/pipeline/orchestrator";
 import { createRun } from "../src/lib/pipeline/run-store";
 
 async function main() {
-  // AI-generated model (avoids Seedance's privacy filter on real-person photos)
-  const facePath = resolve("public/creators/creator-1.jpeg");
+  const facePath = resolve("public/creators/creator-2.jpg");
   const faceMimeType = facePath.toLowerCase().endsWith(".jpg") || facePath.toLowerCase().endsWith(".jpeg")
     ? "image/jpeg"
     : "image/png";
 
-  // Single-segment template (template-3 = 1 outfit slot). The pipeline should
-  // generate ONE 10s clip and skip the multi-clip concat path entirely.
+  // template-5 is single-outfit (1 outfit_segment, 9.5s total). 1 keyframe →
+  // 1 kie.ai call → 1 clip, audio muxed. No concat.
   const run = createRun({
-    template_id: "template-3",
+    template_id: "template-5",
     looks: [
-      { product_ids: ["black-top", "skirt", "black-boots"] }, // single full-body outfit
+      { product_ids: ["black-top", "skirt", "black-boots", "purse"] },
     ],
     reference_face_path: facePath,
   });

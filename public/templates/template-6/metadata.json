@@ -1,0 +1,69 @@
+{
+  "scene_description": "A stylish individual poses in three distinct urban settings—against a graffiti wall, a chain-link fence, and on a colorful court—in a fast-paced, rhythmic montage with quick cuts and color effects.",
+  "subject": {
+    "rough_pose": "A mix of standing, leaning, and sitting poses, all held statically for each short clip.",
+    "framing": "Medium and medium-wide shots, with both low-angle and high-angle perspectives used.",
+    "lighting": "Even, diffused natural daylight, suggesting an overcast day."
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 0.9,
+      "action": "A medium-wide, slightly low-angle shot shows a person posing against a graffiti-covered wall. They lean their back against the wall, with their left shoulder pressed more firmly into it. Their right leg is bent sharply at the knee, with the sole of their shoe propped up against the wall, while their left leg is straight, supporting their weight. Both hands are casually tucked into the front pockets of their pants. Their head is tilted slightly to their left, and they gaze directly at the camera with a neutral, confident expression. A slow, subtle camera push-in occurs throughout the shot, which ends with a hard jump cut."
+    },
+    {
+      "t_start": 0.9,
+      "t_end": 2,
+      "action": "The scene abruptly cuts to a medium shot of the person leaning against a chain-link fence. Their body is angled away from the camera toward frame left. Their right arm is bent and raised, with their hand resting casually on top of the fence. The left hand remains in their pants pocket. Their head is turned to face the camera, looking slightly upward with a confident, impassive expression and slightly parted lips. The camera has a very subtle handheld jitter, giving the static pose a sense of immediacy. The shot holds this pose before transitioning out with a hard jump cut."
+    },
+    {
+      "t_start": 2,
+      "t_end": 2.9,
+      "action": "A sudden cut reveals a high-angle medium shot of the person sitting on a textured red surface next to a bold blue stripe. They are seated with their legs tucked in front of them, leaning back on their right hand, which is placed on the ground behind them for support. Their left arm rests on their left knee. Their upper body is oriented towards the static camera, and they look directly into the lens with a calm, neutral expression. The background is softly out of focus, drawing attention to the subject's pose. The shot ends abruptly with a hard cut."
+    },
+    {
+      "t_start": 2.9,
+      "t_end": 3.9,
+      "action": "This shot is a direct repetition of the second clip in the sequence. Framed in a medium shot, the person leans against the chain-link fence, body angled left. Their right hand rests on the fence top while the left is pocketed. They turn their head to look confidently toward the camera, their gaze directed slightly upward. The subtle handheld camera jitter is present again, adding a raw quality to the shot. This repetition creates a rhythmic, looping effect within the fast-paced montage. The scene concludes with another hard jump cut."
+    },
+    {
+      "t_start": 3.9,
+      "t_end": 4.7,
+      "action": "The video returns to the initial pose in a medium-wide, low-angle shot. The subject leans against the graffiti wall, right leg bent with the foot propped against the wall and the left leg straight. Both hands are in their pockets. Their head is tilted slightly left as they look directly into the camera with a sustained, confident expression. The camera performs the same slow, subtle push-in as in the first shot, reinforcing the central pose of the video. It transitions out with a hard cut that incorporates an instantaneous color change."
+    },
+    {
+      "t_start": 4.7,
+      "t_end": 5.4,
+      "action": "The final shot is a continuation of the previous one, holding the exact same pose, framing, and slow push-in camera motion. The person remains leaning against the graffiti wall, hands in pockets, looking at the camera. However, a digital color effect has been applied, instantly changing the prominent red tones of their clothing and the background graffiti to a bright, golden yellow. The subject maintains their cool, direct gaze as the video holds on this altered-color shot before ending."
+    }
+  ],
+  "composition_notes": "The video uses a rapid-fire editing style with hard cuts synchronized to an implied beat. It cycles through a small number of static, confident poses, using repetition and slight variations (like the color change) to create a dynamic and stylish montage. The framing consistently keeps the subject centered and as the main focal point.",
+  "style": {
+    "lens": "Natural 50mm",
+    "color_treatment": "Slightly desaturated with warm-shifted midtones",
+    "lighting_effects": "Diffused natural daylight",
+    "special_effects": [
+      "rapid cuts",
+      "stutter effect",
+      "color replacement"
+    ]
+  },
+  "pose_archetypes": [
+    "cool",
+    "confident",
+    "stylish",
+    "nonchalant",
+    "assertive"
+  ],
+  "energy": "High-energy fast-cut street style montage",
+  "shot_backgrounds": [
+    "A concrete wall with orange and blue graffiti",
+    "A metal chain-link fence",
+    "A red and blue textured ground surface, possibly a sports court"
+  ],
+  "outfit_segments": [
+    { "t_start": 0,   "t_end": 5.4, "shot_indices": [0, 4, 5] },
+    { "t_start": 0.9, "t_end": 3.9, "shot_indices": [1, 3] },
+    { "t_start": 2,   "t_end": 2.9, "shot_indices": [2] }
+  ]
+}
