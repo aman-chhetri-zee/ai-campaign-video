@@ -14,13 +14,13 @@ async function main() {
     : "image/png";
 
   const run = createRun({
-    template_id: "template-2",
+    template_id: "template-1",
     looks: [
-      // Four distinct outfits — each full-body (bottoms + footwear) so framing kicks in correctly
-      { product_ids: ["black-top", "skirt", "black-boots"] },                 // monochrome elegant
-      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers"] },            // casual streetwear
-      { product_ids: ["black-top", "baggy-jeans", "black-boots", "purse"] },  // edgy with handbag
-      { product_ids: ["blue-tshirt", "skirt", "sneakers", "satchel-bag"] },   // playful with bag
+      // Four distinct outfits — each full-body (top + bottom + footwear, sometimes a bag)
+      { product_ids: ["black-top", "skirt", "black-boots"] },                    // monochrome elegant, no bag
+      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers", "purse"] },      // casual streetwear with handbag
+      { product_ids: ["black-top", "baggy-jeans", "black-boots", "satchel-bag"] }, // edgy with shoulder satchel
+      { product_ids: ["blue-tshirt", "skirt", "sneakers"] },                     // playful, no bag
     ],
     reference_face_path: facePath,
   });
