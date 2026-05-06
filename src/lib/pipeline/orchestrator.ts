@@ -650,6 +650,23 @@ export async function runPipeline(
       }[] = [];
       const multishotProductRefSet = new Set<string>();
 
+      // Single-outfit special case — when there's exactly one outfit slot AND
+      // one look, kie.ai's reference_video mode would still trigger multi-shot
+      // composition (Seedance auto-detects shot boundaries from visual content
+      // changes in the reference video and rotates through reference_image_urls
+      // across those perceived shots — bleeding different outfits across shots
+      // even though the user provided only one). To avoid this, we drop the
+      // reference video entirely and use first_frame_url mode: Seedance
+      // animates the keyframe per the prompt without multi-shot composition.
+      const isSingleOutfit =
+        (template.metadata.outfit_segments?.length ?? 1) === 1 &&
+        run.looks.length === 1;
+      if (isSingleOutfit) {
+        console.log(
+          "[orchestrator] single-outfit template + single look — using first_frame_url mode (no reference_video, no product refs) to prevent outfit bleeding",
+        );
+      }
+
       for (let i = 0; i < run.looks.length; i++) {
         console.log(`[orchestrator] look ${i} video provider: kie_seedance`);
 
@@ -817,9 +834,13 @@ export async function runPipeline(
 
         const kieResult = await generateViaKieSeedance({
           keyframeUrl: keyframeBlobUrl,
-          identityReferenceUrls,
-          productReferenceUrls,
-          motionReferenceUrl,
+          // For single-outfit single-look runs, drop the reference_video AND
+          // identity/product refs — first_frame_url mode (no extra refs) is
+          // the only way to keep Seedance from composing a multi-shot output
+          // with bleeding outfits.
+          identityReferenceUrls: isSingleOutfit ? undefined : identityReferenceUrls,
+          productReferenceUrls: isSingleOutfit ? undefined : productReferenceUrls,
+          motionReferenceUrl: isSingleOutfit ? undefined : motionReferenceUrl,
           motionPrompt: prompts.motion_prompt,
           negativePrompt: prompts.negative_prompt,
           durationSeconds: targetDurationSeconds,
@@ -884,6 +905,59 @@ export async function runPipeline(
           4,
           Math.min(15, Math.round(fullDuration)),
         ) as 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
+
+        // Single-outfit fallback: don't use the multishot function (which
+        // requires reference_video and would trigger outfit bleeding).
+        // Use the simple first_frame_url path with no reference video.
+        if (isSingleOutfit) {
+          updateRun(run_id, {
+            status: "generating_video",
+            progress_label: `Rendering single-outfit video (1 call, ${requestDuration}s)…`,
+          });
+          const simpleResult = await generateViaKieSeedance({
+            keyframeUrl: multishotKeyframeBlobUrls[0],
+            // No identity/product/motion refs — first_frame_url mode only.
+            motionPrompt: multishotShotPlan[0].motion_prompt,
+            durationSeconds: requestDuration,
+            aspectRatio: "9:16",
+            resolution: "720p",
+          });
+          const rawSinglePath = join(runDir, "kie-multishot-raw.mp4");
+          writeFileSync(rawSinglePath, simpleResult.videoBytes);
+          const actualDur = await new Promise<number>((resolve) => {
+            ffmpeg.ffprobe(rawSinglePath, (err, data) => {
+              if (err) return resolve(0);
+              resolve(data.format?.duration ?? 0);
+            });
+          });
+          console.log(
+            `[orchestrator][multishot] single-outfit kie.ai returned ${actualDur.toFixed(2)}s clip (target = ${fullDuration.toFixed(2)}s)`,
+          );
+          const conformedSinglePath = join(runDir, "kie-multishot-conformed.mp4");
+          await conformClipDuration({
+            inputPath: rawSinglePath,
+            outputPath: conformedSinglePath,
+            actualDurationSeconds: actualDur,
+            targetDurationSeconds: fullDuration,
+          });
+          updateRun(run_id, {
+            status: "concatenating",
+            progress_label: "Muxing template audio…",
+          });
+          const finalPathSingle = join(runDir, "output.mp4");
+          const templateVideoPathSingle = resolve("public", template.video_path);
+          await concatClips([conformedSinglePath], finalPathSingle, templateVideoPathSingle);
+          ffmpeg.ffprobe(finalPathSingle, (err, data) => {
+            if (err) return;
+            console.log(
+              `[orchestrator][multishot] final mp4 verify — duration=${data.format?.duration}s, streams=${data.streams?.length}`,
+            );
+          });
+          return updateRun(run_id, {
+            status: "succeeded",
+            video_url: `/runs/${run_id}/output.mp4`,
+          });
+        }
 
         // Build the comprehensive prompt with per-shot timestamps + outfits
         const shotLines = multishotShotPlan.map((s, idx) => {
