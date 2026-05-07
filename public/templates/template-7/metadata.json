@@ -1,0 +1,58 @@
+{
+  "scene_description": "A short, fast-paced commercial for a unisex fragrance, featuring a series of slick, high-contrast shots. The video showcases a perfume bottle in various cool, crystalline environments, including a bed of glowing blue crystals, a field of crystal shards, a dark cave, and a bed of ice, interspersed with a shot of a person elegantly presenting the product. The overall theme is one of freshness, coolness, and luxury, emphasized by a blue and gold color palette.",
+  "subject": {
+    "rough_pose": "Seated or standing, holding the product with both hands at chest level, body slightly turned away, head turned towards camera.",
+    "framing": "Chest-up medium shot.",
+    "lighting": "Soft key light on the face with strong blue backlighting from background elements creating a distinct rim light."
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 1.2,
+      "action": "The shot opens with an extreme close-up on the gold cap of a perfume bottle, nestled within a dense formation of tall, sharp, glowing blue crystals. The camera slowly pulls back and tilts down, a smooth and deliberate motion that gradually reveals the translucent blue body of the bottle. The crystals themselves are the primary light source, emitting a vibrant, pulsating blue glow that refracts through the glass. The framing is very tight, creating a sense of mystery and discovery. The focus is soft at first, sharpening as the camera pulls back to reveal the product's shape. The shot concludes with a hard cut."
+    },
+    {
+      "t_start": 1.2,
+      "t_end": 2.5,
+      "action": "In a medium shot, the perfume bottle is seen suspended in mid-air, floating just above a textured ground covered in small, sharp, blue crystal fragments. The background is a clean, dark blue gradient with a soft spotlight emanating from the top right, creating a polished studio look. The bottle is perfectly centered and static, appearing weightless and pristine. A very subtle, slow digital push-in is applied, drawing the viewer's focus directly to the product's branding. The lighting is clean and commercial, meticulously highlighting the bottle's sharp edges and the gold lettering on its face. The shot transitions with a hard jump cut."
+    },
+    {
+      "t_start": 2.5,
+      "t_end": 5.5,
+      "action": "This chest-up medium shot features a person holding the perfume bottle. Their body is angled slightly away from the camera to the right, while they hold the bottle delicately in front of them with both hands. The background is a dark, rocky environment, punctuated by large, glowing blue crystals that cast a cool, atmospheric light and create a sharp blue rim light on the person's hair and shoulders. The shot begins with the person's eyes closed, their facial expression serene and contemplative. They then slowly open their eyes, lift their chin slightly, and make direct, confident eye contact with the camera. The camera remains static throughout, holding the composition. The shot fades to black."
+    },
+    {
+      "t_start": 5.5,
+      "t_end": 9.5,
+      "action": "The scene fades in from black. The perfume bottle stands perfectly centered on a dark, reflective surface against a nearly black background with a hint of deep blue. A single, powerful spotlight from above and slightly in front illuminates the bottle, creating a dramatic, high-contrast look with a long shadow stretching forward. A wispy plume of blue-tinted smoke or vapor slowly rises from behind the bottle, curling and expanding to fill the upper portion of the frame. The camera is completely static, creating a powerful, still-life composition where the only movement comes from the ethereal smoke. This creates a sense of cool mystique and luxury. The shot ends in a hard cut."
+    },
+    {
+      "t_start": 9.5,
+      "t_end": 11.9,
+      "action": "A slightly canted overhead shot shows the perfume bottle resting diagonally across a bed of glistening, clear ice cubes. The background is a bright, solid light blue, creating a fresh and clean aesthetic. The lighting is bright and even, making the ice sparkle and emphasizing the vibrant blue color of the perfume inside the bottle. A slow, subtle camera rotation moves counter-clockwise around the product, giving the static scene a sense of dynamism and allowing the light to play across the bottle's surfaces. The focus is tack sharp on the product's label, serving as the final hero shot before the video ends."
+    }
+  ],
+  "composition_notes": "The video uses clean, deliberate composition, alternating between centered, heroic product shots and a more classically composed shot with a human subject. A shallow depth of field is used consistently to keep the focus on the product and blur the background elements, even when those elements are a key part of the scene's atmosphere.",
+  "style": {
+    "lens": "Natural 50mm, clean and free of distortion.",
+    "color_treatment": "Cool, monochromatic blue palette with strong gold accents. Features deep, crushed blacks and high contrast.",
+    "lighting_effects": "Atmospheric blue glow from crystals, dramatic low-key spotlighting, and clean commercial lighting.",
+    "special_effects": [
+      "Glowing crystals",
+      "Slow-motion vapor/smoke effect"
+    ]
+  },
+  "pose_archetypes": [
+    "serene",
+    "elegant",
+    "confident"
+  ],
+  "energy": "Luxurious and cool product showcase",
+  "shot_backgrounds": [
+    "A close-up of glowing blue crystals.",
+    "A dark blue studio backdrop with a floor of small crystal shards.",
+    "A dark cave setting with glowing blue crystals.",
+    "A dark, smoky studio setting.",
+    "A bed of ice cubes on a light blue surface."
+  ]
+}

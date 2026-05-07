@@ -12,15 +12,14 @@ async function main() {
     ? "image/jpeg"
     : "image/png";
 
-  // template-6: 3 outfit_segments (graffiti / fence / court, 5.4s total).
-  // Multishot mode is the right fit — single kie.ai call distributes the 3
-  // keyframes across the perceived shots; output stays close to template duration.
+  // Test the keyframe-fallback prompt: template-3 (single full-body model
+  // walk on grey backdrop) + ONLY a top selected. With the new prompt,
+  // Nano Banana Pro should infer bottoms / footwear from the template's
+  // scene reference rather than defaulting to white-tee + light-jeans.
   const run = createRun({
-    template_id: "template-6",
+    template_id: "template-3",
     looks: [
-      { product_ids: ["black-top", "skirt", "black-boots"] },                  // outfit 1 — graffiti wall
-      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers", "purse"] },    // outfit 2 — chain-link fence
-      { product_ids: ["oversized-tee", "grey-trouser", "sneakers"] },          // outfit 3 — red/blue court
+      { product_ids: ["black-top"] }, // top only — bottoms/footwear should be inferred from template
     ],
     reference_face_path: facePath,
   });

@@ -42,5 +42,8 @@
   "energy": "Upbeat try-on reveal",
   "shot_backgrounds": [
     "Modern apartment interior with light wood floors, neutral cabinets, and a large arched mirror."
+  ],
+  "outfit_segments": [
+    { "t_start": 0, "t_end": 10.3, "shot_indices": [0, 1, 2] }
   ]
 }
