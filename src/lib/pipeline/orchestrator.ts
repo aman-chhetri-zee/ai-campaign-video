@@ -931,43 +931,51 @@ export async function runPipeline(
                 `[orchestrator][multishot] look ${i} group ${g} (wearing) plan collected — shots [${group.shot_indices.join(",")}], ${group.t_start.toFixed(2)}-${group.t_end.toFixed(2)}s`,
               );
             } else {
-              // "absent" — generate a separate product-only keyframe for these shots.
-              const groupActions = group.motion_script_entries
-                .map((e) => e.action)
-                .join(" ")
-                .replace(/\s+/g, " ")
-                .trim();
-              const productOnly = await compositeProductOnlyKeyframe({
-                templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
-                products: productImages,
-                shotDescription: groupActions,
-                backgroundDescription: backgroundForLook,
-              });
-              const absentKeyframePath = join(
-                runDir,
-                `keyframe-${i}-absent-${g}.png`,
-              );
-              writeFileSync(absentKeyframePath, productOnly.imageBytes);
-              const absentBlobUrl = await uploadToBlob(
-                `keyframes/${run_id}/look-${i}-absent-${g}.png`,
-                productOnly.imageBytes,
-                productOnly.mimeType,
-              );
-              console.log(
-                `[orchestrator][multishot] look ${i} group ${g} (absent) product-only keyframe uploaded: ${absentBlobUrl}`,
-              );
+              // "absent" — generate one product-only keyframe PER motion_script
+              // entry in this group. Each entry gets its own scene-specific
+              // keyframe (e.g., crystals vs ice vs cave) so Seedance has a 1:1
+              // visual reference for each perceived shot. Without this, multiple
+              // absent shots share a single keyframe and Seedance falls back to
+              // reproducing the reference video's content for the unmapped shots.
+              const shotBackgrounds = template.metadata.shot_backgrounds ?? [];
+              for (let entryIdx = 0; entryIdx < group.motion_script_entries.length; entryIdx++) {
+                const entry = group.motion_script_entries[entryIdx];
+                const motionScriptIndex = group.shot_indices[entryIdx];
+                const shotBackground =
+                  shotBackgrounds[motionScriptIndex] ?? backgroundForLook;
+                const action = entry.action.replace(/\s+/g, " ").trim();
+                const productOnly = await compositeProductOnlyKeyframe({
+                  templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
+                  products: productImages,
+                  shotDescription: action,
+                  backgroundDescription: shotBackground,
+                });
+                const absentKeyframePath = join(
+                  runDir,
+                  `keyframe-${i}-absent-shot${motionScriptIndex}.png`,
+                );
+                writeFileSync(absentKeyframePath, productOnly.imageBytes);
+                const absentBlobUrl = await uploadToBlob(
+                  `keyframes/${run_id}/look-${i}-absent-shot${motionScriptIndex}.png`,
+                  productOnly.imageBytes,
+                  productOnly.mimeType,
+                );
+                console.log(
+                  `[orchestrator][multishot] look ${i} group ${g} (absent) shot ${motionScriptIndex} keyframe uploaded — scene "${shotBackground.slice(0, 60)}..."`,
+                );
 
-              multishotKeyframeBlobUrls.push(absentBlobUrl);
-              multishotShotPlan.push({
-                outfit_index: i,
-                state: "absent",
-                shot_indices: group.shot_indices,
-                t_start: group.t_start,
-                t_end: group.t_end,
-                motion_prompt: groupActions || prompts.motion_prompt,
-                outfit_description: outfitDescription,
-              });
-              for (const u of productReferenceUrls) multishotProductRefSet.add(u);
+                multishotKeyframeBlobUrls.push(absentBlobUrl);
+                multishotShotPlan.push({
+                  outfit_index: i,
+                  state: "absent",
+                  shot_indices: [motionScriptIndex],
+                  t_start: entry.t_start,
+                  t_end: entry.t_end,
+                  motion_prompt: action || prompts.motion_prompt,
+                  outfit_description: outfitDescription,
+                });
+                for (const u of productReferenceUrls) multishotProductRefSet.add(u);
+              }
             }
           }
           continue; // skip per-shot call
