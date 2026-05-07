@@ -727,19 +727,37 @@ export async function runPipeline(
       const multishotProductRefSet = new Set<string>();
 
       // Single-outfit special case — when there's exactly one outfit slot AND
-      // one look, Seedance's reference_video mode auto-detects shot boundaries
-      // from the reference video AND rotates through reference_image_urls
-      // across those perceived shots, which bleeds different outfits when
-      // multiple distinct images are sent. We keep the reference_video (so
-      // motion still matches template choreography) but drop product/identity
-      // refs and send ONLY the keyframe — Seedance has nothing to rotate
-      // through, so the same outfit appears in every perceived shot.
+      // one look AND the segment has no mixed subject_states (i.e., every shot
+      // is "wearing"), Seedance's reference_video mode auto-detects shot
+      // boundaries and rotates through reference_image_urls across them, which
+      // bleeds different outfits when multiple distinct images are sent. We
+      // keep the reference_video (so motion still matches template choreography)
+      // but drop product/identity refs and send ONLY the keyframe — Seedance
+      // has nothing to rotate through, so the same outfit appears in every
+      // perceived shot.
+      //
+      // For ad-style templates with mixed subject_states (template-7), this
+      // shortcut would discard the product-only keyframes. We detect that and
+      // fall through to the regular multishot path so all keyframes get used.
+      const hasMixedSubjectStates =
+        (template.metadata.outfit_segments?.length ?? 0) > 0 &&
+        (template.metadata.outfit_segments ?? []).some(
+          (seg) =>
+            seg.subject_states &&
+            seg.subject_states.length > 1 &&
+            new Set(seg.subject_states.map((s) => s.state)).size > 1,
+        );
       const isSingleOutfit =
         (template.metadata.outfit_segments?.length ?? 1) === 1 &&
-        run.looks.length === 1;
+        run.looks.length === 1 &&
+        !hasMixedSubjectStates;
       if (isSingleOutfit) {
         console.log(
           "[orchestrator] single-outfit template + single look — keeping reference_video for motion, but sending ONLY the keyframe as reference image (no identity / product refs) to prevent outfit bleeding while preserving template choreography",
+        );
+      } else if (hasMixedSubjectStates) {
+        console.log(
+          "[orchestrator] template has mixed subject_states (wearing + absent) — using multi-keyframe multishot path instead of single-outfit shortcut",
         );
       }
 
