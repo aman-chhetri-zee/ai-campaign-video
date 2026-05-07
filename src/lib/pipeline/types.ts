@@ -14,10 +14,24 @@ export type TemplateStyle = {
   special_effects: string[];       // e.g. ["ghosting trails", "RGB chromatic aberration", "flicker", "lens flare"]
 };
 
+export type SubjectState =
+  | "wearing"   // subject (person) is in shot, wearing the outfit's products (default)
+  | "absent";   // subject is NOT in shot — render a product-only hero/scene image
+
+export type OutfitSegmentSubjectState = {
+  shot_indices: number[];     // motion_script entries this state applies to
+  state: SubjectState;
+};
+
 export type OutfitSegment = {
   t_start: number;            // segment start in template seconds
   t_end: number;              // segment end in template seconds
   shot_indices: number[];     // motion_script entry indices that this outfit slot covers
+  // OPTIONAL — declares per-shot subject state when shots within this outfit
+  // segment differ (e.g., ad-style templates where some shots are product-only
+  // and others feature the subject). When omitted, every shot is treated as
+  // "wearing" (the legacy default).
+  subject_states?: OutfitSegmentSubjectState[];
 };
 
 export type TemplateMetadata = {
