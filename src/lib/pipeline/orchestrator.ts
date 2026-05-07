@@ -1158,10 +1158,19 @@ export async function runPipeline(
         });
 
         const hasAbsentShots = multishotShotPlan.some((s) => s.state === "absent");
+        // Build a single canonical product-name string from the user's products
+        // (deduped). Used for the product-substitution clause.
+        const allProductNames = Array.from(
+          new Set(multishotShotPlan.flatMap((s) => s.outfit_description.split("; "))),
+        )
+          .filter(Boolean)
+          .join("; ")
+          .slice(0, 600);
+
         const headerLines = hasAbsentShots
           ? [
-              `Multi-shot commercial video, ${fullDuration.toFixed(1)} seconds total, ${multishotShotPlan.length} shots. Some shots feature the subject with the outfit; other shots are PRODUCT-ONLY hero shots with no person in frame. Match the reference video's shot structure and timing exactly.`,
-              "Honor each shot's state — wearing-the-outfit shots must show the subject; product-only shots must show NO person at all. Do not insert people into product-only shots, and do not omit the person from wearing shots.",
+              `Multi-shot commercial video, ${fullDuration.toFixed(1)} seconds total, ${multishotShotPlan.length} shots. Some shots feature the subject with the product; other shots are PRODUCT-ONLY hero shots with no person in frame. Match the reference video's shot structure and timing exactly.`,
+              "Honor each shot's state — subject-present shots must show the subject; product-only shots must show NO person at all. Do not insert people into product-only shots, and do not omit the person from subject-present shots.",
             ]
           : [
               `Multi-shot fashion video, ${fullDuration.toFixed(1)} seconds total, ${multishotShotPlan.length} shots.`,
@@ -1172,12 +1181,15 @@ export async function runPipeline(
           ...headerLines,
           "Use jump cuts at the timestamps below. Keep identity consistent on shots that feature the subject; render product-only shots without any person.",
           "",
-          "STRICT SHOT-STATE BINDING (highest priority):",
-          "Each keyframe is bound to its assigned shot's timestamp range. The model MUST NOT redistribute, blend, or repeat keyframes across shots — even if some shots are short or some settings are revisited. Short shots must still receive their assigned keyframe; longer / revisited shots must not steal short shots' material. Subject-bearing keyframes appear ONLY in their wearing shots; product-only keyframes appear ONLY in their absent shots.",
+          "PRODUCT SUBSTITUTION (highest priority alongside identity):",
+          `The product(s) visible in EVERY shot of the output must be the user's product(s) shown in the reference images: ${allProductNames}. The reference video MAY show a different product (the template's placeholder) — that placeholder is for choreography reference ONLY and must NOT appear in the output. Wherever the reference video shows its placeholder product (whether held by a person or as a hero shot), substitute the user's product in its place. Match every visible detail of the user's product (color, label, shape, finish, branding) exactly to the reference images. If you find yourself rendering the template's placeholder product instead of the user's product, that is INCORRECT.`,
+          "",
+          "STRICT SHOT-STATE BINDING:",
+          "Each keyframe is bound to its assigned shot's timestamp range. The model MUST NOT redistribute, blend, or repeat keyframes across shots — even if some shots are short or some settings are revisited. Short shots must still receive their assigned keyframe; longer / revisited shots must not steal short shots' material. Subject-bearing keyframes appear ONLY in their assigned (wearing) shots; product-only keyframes appear ONLY in their assigned (absent) shots.",
           "",
           ...shotLines,
           "",
-          "Identity match (for wearing shots) is the absolute highest priority. Shot-state binding is the second highest — outranking motion fidelity and scene reproduction. Do not insert the subject into product-only shots, and do not blend or swap outfits between wearing shots, ever.",
+          "Identity match (for subject-present shots) and product substitution (for ALL shots) are tied for highest priority. Shot-state binding is second. These three rules outrank motion fidelity and scene reproduction. Do not insert the subject into product-only shots, do not blend outfits between subject-present shots, and do not let the template's placeholder product appear in the output.",
         ].join("\n");
 
         console.log(

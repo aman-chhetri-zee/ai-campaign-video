@@ -1,0 +1,18 @@
+{
+  "primary_item_type": "perfume_bottle",
+  "items": [
+    {
+      "item_type": "perfume_bottle",
+      "attachment_strategy": "placed_on_surface",
+      "side_preference": "center",
+      "visual_description": "A rectangular, transparent turquoise glass perfume bottle with a matching architectural, fluted cap. It has a gold-colored label on the front with black text that reads 'TOM FORD', 'FLEUR DE PORTOFINO', 'EAU DE PARFUM', '50 ML'."
+    }
+  ],
+  "overall_description": "This is a product image of a Tom Ford Fleur de Portofino perfume bottle. The design is modern and striking, characterized by its vibrant turquoise color and the contrast with the metallic gold label.",
+  "key_features": [
+    "Turquoise glass bottle",
+    "Architectural fluted cap",
+    "Gold label with black lettering",
+    "Rectangular shape"
+  ]
+}
