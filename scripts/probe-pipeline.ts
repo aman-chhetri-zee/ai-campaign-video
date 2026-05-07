@@ -19,10 +19,15 @@ async function main() {
   // template-7 (perfume commercial, mixed subject_states) + creator-3 +
   // free-perfume (vintage ornate bottle — visually distinct from modern
   // fragrance brands, lower IP-filter risk).
+  // Pre-merge smoke test: template-6 + creator-2 + 3 outfits (same setup that
+  // worked on main pre-branch). Validates that the subject_absent-state branch
+  // doesn't regress outfit-only templates.
   const run = createRun({
-    template_id: "template-7",
+    template_id: "template-6",
     looks: [
-      { product_ids: ["free-perfume"] },
+      { product_ids: ["black-top", "skirt", "black-boots"] },
+      { product_ids: ["blue-tshirt", "baggy-jeans", "sneakers", "purse"] },
+      { product_ids: ["oversized-tee", "grey-trouser", "sneakers"] },
     ],
     reference_face_path: facePath,
   });

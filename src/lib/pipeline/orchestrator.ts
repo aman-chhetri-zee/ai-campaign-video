@@ -1209,32 +1209,28 @@ export async function runPipeline(
           progress_label: `Rendering multi-shot video (1 call, ${requestDuration}s)…`,
         });
 
-        // For templates with absent shots (ad-style), the keyframes already
-        // encode identity (face/body in the wearing keyframe) and the product
-        // (in both wearing and product-only keyframes). Sending separate
-        // identity + product reference images gives Seedance "loose" visual
-        // material that it may treat as standalone shots — observed bleeding:
-        // the raw creator photo / master subject appearing as a still frame
-        // for one shot, and the template's placeholder content showing through
-        // for another. For multi-outfit templates without absent shots, the
-        // identity refs still help cross-outfit consistency, so we keep them.
+        // The keyframes already encode identity (the face/body baked in by
+        // Nano Banana Pro from the master + creator photo) and the products
+        // (wearing keyframes show the outfit; product-only keyframes show the
+        // product alone). Sending identity + product refs separately to kie.ai
+        // adds "loose" visual material that Seedance can treat as standalone
+        // shots, observed bleeding both for absent-shot templates (raw creator
+        // photo appearing as a still frame) and for multi-outfit templates
+        // (master subject's white-tee + jeans appearing in a graffiti shot).
+        // Drop both unconditionally — keyframes carry everything we need.
         const multishotResult = await generateMultiShotViaKieSeedance({
           keyframeUrls: multishotKeyframeBlobUrls,
-          identityReferenceUrls: hasAbsentShots ? undefined : identityReferenceUrls,
-          productReferenceUrls: hasAbsentShots
-            ? undefined
-            : Array.from(multishotProductRefSet),
+          identityReferenceUrls: undefined,
+          productReferenceUrls: undefined,
           motionReferenceUrl,
           motionPrompt: multishotPrompt,
           durationSeconds: requestDuration,
           aspectRatio: "9:16",
           resolution: "720p",
         });
-        if (hasAbsentShots) {
-          console.log(
-            "[orchestrator][multishot] absent-shot mode — dropped identity + product refs (already encoded in keyframes) to prevent loose-image bleed",
-          );
-        }
+        console.log(
+          "[orchestrator][multishot] dropped identity + product refs (already encoded in keyframes) to prevent loose-image bleed",
+        );
 
         const rawSinglePath = join(runDir, "kie-multishot-raw.mp4");
         writeFileSync(rawSinglePath, multishotResult.videoBytes);
