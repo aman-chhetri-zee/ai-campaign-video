@@ -48,7 +48,7 @@ function getVideoProvider(): VideoProvider {
   }
   // Backward compat — old USE_SEEDANCE boolean
   if (process.env.USE_SEEDANCE === "true") return "seedance";
-  return "kling";
+  return "kie_seedance";
 }
 
 // ---------------------------------------------------------------------------
@@ -60,20 +60,21 @@ const SKIP_KLING = () => process.env.SKIP_KLING === "true";
 
 // ---------------------------------------------------------------------------
 // kie.ai video strategy — switch between two architectures for comparison.
-//   per_shot_conform   (default) — N kie.ai calls (one per outfit segment),
-//                                  ffmpeg-speed-conform each clip to its true
-//                                  segment span (max 2.5x speedup, trim above),
-//                                  then concat. Robust for any template.
-//   multishot_single_call         — ONE kie.ai call with all outfit keyframes
-//                                  + the full template as reference video, at
-//                                  the template's full duration. Skips concat.
-//                                  Cheaper + faster but relies on Seedance's
-//                                  multi-shot mode honoring outfit transitions.
+//   multishot_single_call (default) — ONE kie.ai call with all outfit keyframes
+//                                     + the full template as reference video, at
+//                                     the template's full duration. Skips concat.
+//                                     Cheapest + fastest; output duration matches
+//                                     the template natively.
+//   per_shot_conform                 — N kie.ai calls (one per outfit segment),
+//                                     ffmpeg-speed-conform each clip to its true
+//                                     segment span (max 2.5x speedup, trim above),
+//                                     then concat. Use when you need guaranteed
+//                                     per-outfit visual fidelity.
 // ---------------------------------------------------------------------------
 type KieVideoStrategy = "per_shot_conform" | "multishot_single_call";
 const getKieVideoStrategy = (): KieVideoStrategy => {
   const v = process.env.KIE_VIDEO_STRATEGY?.trim().toLowerCase();
-  return v === "multishot_single_call" ? "multishot_single_call" : "per_shot_conform";
+  return v === "per_shot_conform" ? "per_shot_conform" : "multishot_single_call";
 };
 
 function loadTemplate(template_id: string): TemplateAsset {
