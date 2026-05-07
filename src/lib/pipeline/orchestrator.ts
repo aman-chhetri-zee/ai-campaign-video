@@ -5,7 +5,6 @@ import ffmpeg from "fluent-ffmpeg";
 import { analyzeReferenceFace } from "./face-analysis";
 import { orchestratePrompts } from "./orchestrate";
 import { compositeKeyframe, compositeProductOnlyKeyframe } from "./keyframe";
-import { extractFrameAtTime } from "./ffmpeg";
 import { inferFramingScope } from "./framing";
 import { judgeKeyframe } from "./judge";
 import { generateVideoFromKeyframe } from "./kling";
@@ -815,44 +814,9 @@ export async function runPipeline(
           description: buildProductDescription(p),
         }));
 
-        // Pick a scene-reference frame for the wearing keyframe. For templates
-        // where the first_frame already shows the model in their outfit
-        // (template-2/3/4/5/6), this is t=0 = first_frame.png. For ad-style
-        // templates where shot 0 is product-only (template-7), we extract a
-        // frame from the actual wearing shot's t_start so Nano Banana Pro's
-        // FALLBACK clause has the template's outfit visible to infer from
-        // (otherwise it falls back to master subject's white-tee + jeans).
-        let wearingSceneRefBytes = templateFirstFrame;
-        const wearingGroupForScene = expandSegmentStates(
-          segmentPlan.segment,
-          template.metadata.motion_script,
-        ).find((g) => g.state === "wearing");
-        if (
-          wearingGroupForScene &&
-          wearingGroupForScene.t_start > 0.05 &&
-          wearingGroupForScene.motion_script_entries.length > 0
-        ) {
-          try {
-            const wearingFramePath = join(runDir, `wearing-scene-ref-${i}.png`);
-            await extractFrameAtTime(
-              resolve("public", template.video_path),
-              wearingGroupForScene.t_start + 0.2,
-              wearingFramePath,
-            );
-            wearingSceneRefBytes = readFileSync(wearingFramePath);
-            console.log(
-              `[orchestrator] look ${i} wearing scene ref extracted from t=${wearingGroupForScene.t_start.toFixed(2)}s (avoids product-only first_frame)`,
-            );
-          } catch (err) {
-            console.warn(
-              `[orchestrator] look ${i} could not extract wearing scene ref, falling back to first_frame: ${(err as Error).message}`,
-            );
-          }
-        }
-
         let keyframe = await compositeKeyframe({
           keyframePrompt: prompts.keyframe_prompt,
-          templateFirstFrame: { bytes: wearingSceneRefBytes, mimeType: "image/png" },
+          templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
           referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
           masterSubject: master ? { bytes: master.imageBytes, mimeType: master.mimeType } : undefined,
           products: productImages,
@@ -880,7 +844,7 @@ export async function runPipeline(
           const retryPrompt = `${prompts.keyframe_prompt}\n\nCORRECTIONS based on the previous attempt — fix these issues explicitly:\n${judgement.issues.map((x) => `- ${x}`).join("\n")}`;
           keyframe = await compositeKeyframe({
             keyframePrompt: retryPrompt,
-            templateFirstFrame: { bytes: wearingSceneRefBytes, mimeType: "image/png" },
+            templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
             referenceFace: { bytes: input.referenceFaceBytes, mimeType: input.referenceFaceMimeType },
             masterSubject: master ? { bytes: master.imageBytes, mimeType: master.mimeType } : undefined,
             products: productImages,
