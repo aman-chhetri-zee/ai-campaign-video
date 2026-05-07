@@ -1201,16 +1201,32 @@ export async function runPipeline(
           progress_label: `Rendering multi-shot video (1 call, ${requestDuration}s)…`,
         });
 
+        // For templates with absent shots (ad-style), the keyframes already
+        // encode identity (face/body in the wearing keyframe) and the product
+        // (in both wearing and product-only keyframes). Sending separate
+        // identity + product reference images gives Seedance "loose" visual
+        // material that it may treat as standalone shots — observed bleeding:
+        // the raw creator photo / master subject appearing as a still frame
+        // for one shot, and the template's placeholder content showing through
+        // for another. For multi-outfit templates without absent shots, the
+        // identity refs still help cross-outfit consistency, so we keep them.
         const multishotResult = await generateMultiShotViaKieSeedance({
           keyframeUrls: multishotKeyframeBlobUrls,
-          identityReferenceUrls,
-          productReferenceUrls: Array.from(multishotProductRefSet),
+          identityReferenceUrls: hasAbsentShots ? undefined : identityReferenceUrls,
+          productReferenceUrls: hasAbsentShots
+            ? undefined
+            : Array.from(multishotProductRefSet),
           motionReferenceUrl,
           motionPrompt: multishotPrompt,
           durationSeconds: requestDuration,
           aspectRatio: "9:16",
           resolution: "720p",
         });
+        if (hasAbsentShots) {
+          console.log(
+            "[orchestrator][multishot] absent-shot mode — dropped identity + product refs (already encoded in keyframes) to prevent loose-image bleed",
+          );
+        }
 
         const rawSinglePath = join(runDir, "kie-multishot-raw.mp4");
         writeFileSync(rawSinglePath, multishotResult.videoBytes);
