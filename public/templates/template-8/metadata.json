@@ -1,0 +1,46 @@
+{
+  "scene_description": "A person is standing in a large, well-organized walk-in closet, presenting a large tumbler to the camera in a typical social media product review style.",
+  "subject": {
+    "rough_pose": "Standing, facing camera, holding a product",
+    "framing": "Chest-up medium shot",
+    "lighting": "Bright, even frontal lighting"
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 6.5,
+      "action": "The subject stands centered in a static, chest-up shot, holding a large tumbler in their right hand. They speak directly to the camera with an enthusiastic and friendly expression. Their left hand gestures expressively, starting with an open palm facing the camera near their left shoulder. As they talk, the left hand moves dynamically, first making a small circle gesture, then sweeping up to brush their hair from their forehead, before returning to an open-handed gesture. Their posture is upright and their gaze is fixed on the lens, creating a direct, conversational connection. The right hand remains stable, keeping the product clearly in view. The mood is upbeat and engaging, transitioning out via a hard cut."
+    },
+    {
+      "t_start": 6.5,
+      "t_end": 11.5,
+      "action": "Continuing the static shot, the subject leans slightly forward, bringing the tumbler closer to the camera to highlight its features. They use their left index finger to point precisely at the lid and straw area, their gaze briefly following the gesture before returning to the camera. Next, they wrap their left fingers around the handle, stroking it to demonstrate its form, looking down at it with an appreciative expression. They then adjust their grip, holding the handle firmly with their right hand and giving a small, subtle thumbs-up with their left hand beside it. The facial expression is consistently positive, conveying satisfaction with the product's design. The action is deliberate and serves to inform the viewer about specific product attributes."
+    },
+    {
+      "t_start": 11.5,
+      "t_end": 15,
+      "action": "In the final action, the subject prepares to drink from the tumbler. They bring the large cup towards their mouth, holding the handle with their right hand and steadying the body with their left. They purse their lips to sip from the straw, and their eyes playfully look up and to their right as they drink, causing their cheeks to hollow slightly. After taking a sip, they lower the tumbler, breaking eye contact with the camera to look down at the product with a small, contented smile. They let out an audible sigh of satisfaction, a clear non-verbal cue of refreshment, before their smile settles into a final, pleasant expression as the video ends."
+    }
+  ],
+  "composition_notes": "The shot is a classic influencer-style, direct-to-camera presentation. The subject is perfectly centered, creating a symmetrical and balanced frame. The product is held prominently in the foreground, acting as a secondary focal point. The background, a brightly lit and organized walk-in closet, provides context and contributes to a lifestyle aesthetic without being distracting.",
+  "style": {
+    "lens": "Natural 35-50mm",
+    "color_treatment": "Bright and natural with clean whites",
+    "lighting_effects": "Diffused soft frontal lighting, likely from a ring light",
+    "special_effects": []
+  },
+  "pose_archetypes": [
+    "enthusiastic",
+    "informative",
+    "approachable",
+    "satisfied",
+    "cute"
+  ],
+  "energy": "Casual and enthusiastic product review",
+  "shot_backgrounds": [
+    "A well-lit walk-in closet with shelves of shoes and racks of clothing."
+  ],
+  "outfit_segments": [
+    { "t_start": 0, "t_end": 15, "shot_indices": [0, 1, 2] }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "travel mug",
+  "items": [
+    {
+      "item_type": "travel mug",
+      "attachment_strategy": "held_in_hand",
+      "side_preference": "none",
+      "visual_description": "A tall, tapered travel mug with a pink and white marbled finish. It features a large, matching pink handle on the side, a pink lid with a clear center, and a reusable pink straw with a cap. The brand name 'MILTON' is printed in white near the base."
+    }
+  ],
+  "overall_description": "This is a single item catalog for a stylish pink travel mug. The mug has a distinctive marbled pattern, a comfortable handle, and a practical lid with a reusable straw, making it a functional and fashionable accessory for beverages on the go.",
+  "key_features": [
+    "Pink and white marbled pattern",
+    "Large integrated handle",
+    "Tapered body",
+    "Pink lid with reusable straw and cap",
+    "MILTON brand logo"
+  ]
+}
