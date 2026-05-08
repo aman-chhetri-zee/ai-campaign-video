@@ -7,19 +7,26 @@ import { runPipeline } from "../src/lib/pipeline/orchestrator";
 import { createRun } from "../src/lib/pipeline/run-store";
 
 async function main() {
-  const facePath = resolve("public/creators/creator-2.jpg");
+  const facePath = resolve("public/creators/creator-1.jpeg");
   const faceMimeType = facePath.toLowerCase().endsWith(".jpg") || facePath.toLowerCase().endsWith(".jpeg")
     ? "image/jpeg"
     : "image/png";
 
-  // Test the keyframe-fallback prompt: template-3 (single full-body model
-  // walk on grey backdrop) + ONLY a top selected. With the new prompt,
-  // Nano Banana Pro should infer bottoms / footwear from the template's
-  // scene reference rather than defaulting to white-tee + light-jeans.
+  // Test subject_absent state: template-7 (perfume commercial — 4 product-only
+  // shots + 1 person shot) + only the tom-ford perfume bottle as product.
+  // Should produce: 1 wearing keyframe (creator holds bottle) + 1 product-only
+  // keyframe (bottle alone in scene), then a single multishot kie.ai call.
+  // template-7 (perfume commercial, mixed subject_states) + creator-3 +
+  // free-perfume (vintage ornate bottle — visually distinct from modern
+  // fragrance brands, lower IP-filter risk).
+  // Smoke test on the unconditional-ref-drop fix: template-6 + creator-1 +
+  // 3 fresh outfit combos.
   const run = createRun({
-    template_id: "template-3",
+    template_id: "template-6",
     looks: [
-      { product_ids: ["black-top"] }, // top only — bottoms/footwear should be inferred from template
+      { product_ids: ["oversized-tee", "baggy-jeans", "sneakers"] },                  // graffiti — streetwear
+      { product_ids: ["black-top", "skirt", "black-boots", "satchel-bag"] },          // fence — edgy with bag
+      { product_ids: ["blue-tshirt", "grey-trouser", "sneakers", "purse"] },          // court — sporty with bag
     ],
     reference_face_path: facePath,
   });

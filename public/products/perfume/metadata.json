@@ -1,0 +1,18 @@
+{
+  "primary_item_type": "perfume bottle",
+  "items": [
+    {
+      "item_type": "perfume bottle",
+      "attachment_strategy": "held_in_hand",
+      "side_preference": "none",
+      "visual_description": "A translucent glass perfume bottle in a deep, rich blue color. It has a slightly rounded rectangular shape, wider at the base. The bottle is topped with a shiny, reflective, cylindrical cap in a matching metallic blue finish."
+    }
+  ],
+  "overall_description": "A product shot of a sleek and modern perfume bottle. The bottle features a deep blue, translucent glass body paired with a glossy, metallic blue cap, creating a cohesive and sophisticated look.",
+  "key_features": [
+    "Translucent deep blue glass",
+    "Shiny metallic blue cap",
+    "Cylindrical cap",
+    "Modern, minimalist design"
+  ]
+}

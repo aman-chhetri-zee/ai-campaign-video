@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "perfume_bottle",
+  "items": [
+    {
+      "item_type": "perfume_bottle",
+      "attachment_strategy": "held_in_hand",
+      "side_preference": "none",
+      "visual_description": "An ornate, vintage-style perfume bottle made of faceted, transparent turquoise-blue glass. The bottle has a bulbous, multifaceted body with intricate gold filigree overlay around its shoulder. A textured gold band encircles the neck. The stopper is a large, diamond-shaped, faceted piece of the same turquoise-blue glass, set in a gold-colored mount."
+    }
+  ],
+  "overall_description": "A single, luxurious and ornate perfume bottle with a magical or vintage aesthetic. The striking combination of turquoise-blue faceted glass and intricate gold detailing makes it a decorative and eye-catching piece.",
+  "key_features": [
+    "Turquoise-blue faceted glass",
+    "Intricate gold filigree detailing",
+    "Diamond-shaped stopper",
+    "Vintage aesthetic",
+    "Bulbous multifaceted body"
+  ]
+}

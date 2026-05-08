@@ -108,6 +108,69 @@ function buildPrompt(
     .join("\n");
 }
 
+async function callNanoBananaPro(
+  prompt: string,
+  parts: object[],
+  label: string,
+): Promise<{ imageBytes: Buffer; mimeType: string }> {
+  const endpoint = `https://${HOST}/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${MODEL_ID}:generateContent`;
+  const body = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }, ...parts],
+      },
+    ],
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+      imageConfig: { aspectRatio: "9:16" },
+    },
+  };
+
+  const resp = await withRetry(
+    async () => {
+      const token = await getAccessToken();
+      const fetchPromise = fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const r = await Promise.race([
+        fetchPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`HTTP request timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
+        ),
+      ]);
+      if (r.status >= 500 && r.status < 600) {
+        throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 300)}`);
+      }
+      return r;
+    },
+    { label },
+  );
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`[keyframe] Nano Banana Pro HTTP ${resp.status}: ${errText.slice(0, 400)}`);
+  }
+
+  const data = await resp.json();
+  const candidate = data.candidates?.[0];
+  const imagePart = candidate?.content?.parts?.find((p: any) => p.inlineData?.data);
+
+  if (!imagePart) {
+    const finishReason = candidate?.finishReason ?? "unknown";
+    const textPart = candidate?.content?.parts?.find((p: any) => p.text)?.text;
+    throw new Error(
+      `[keyframe] Nano Banana Pro returned no image (finishReason=${finishReason}): ${textPart?.slice(0, 200) ?? JSON.stringify(data).slice(0, 300)}`,
+    );
+  }
+
+  const imageBytes = Buffer.from(imagePart.inlineData.data, "base64");
+  const mimeType = imagePart.inlineData.mimeType ?? "image/png";
+  return { imageBytes, mimeType };
+}
+
 export async function compositeKeyframe(input: {
   keyframePrompt: string;
   templateFirstFrame: ImageInput;
@@ -154,66 +217,69 @@ export async function compositeKeyframe(input: {
   );
   console.log(`[keyframe] prompt:`, prompt.slice(0, 400).replace(/\n/g, " "));
 
-  const endpoint = `https://${HOST}/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${MODEL_ID}:generateContent`;
+  const result = await callNanoBananaPro(prompt, parts, "keyframe-nano-banana-pro");
+  console.log(`[keyframe] Nano Banana Pro SUCCESS — ${result.imageBytes.length} bytes, ${result.mimeType}`);
+  return result;
+}
 
-  const body = {
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: prompt }, ...parts],
-      },
-    ],
-    generationConfig: {
-      responseModalities: ["IMAGE"],
-      imageConfig: { aspectRatio: "9:16" },
-    },
-  };
+/**
+ * Generate a PRODUCT-ONLY hero keyframe — no person in shot. Used for ad-style
+ * templates where some shots are pure product showcases (the perfume bottle on
+ * crystals, ice, etc.). Takes the template's scene reference + the product
+ * images and renders a clean hero composition with no human subject.
+ */
+export async function compositeProductOnlyKeyframe(input: {
+  templateFirstFrame: ImageInput;            // scene context
+  products: ProductWithDescription[];        // products to feature in the hero shot
+  shotDescription?: string;                  // motion_script entry's action text for this shot
+  backgroundDescription?: string;            // scene-specific background description
+}): Promise<{ imageBytes: Buffer; mimeType: string }> {
+  const parts: object[] = [];
+  const refOrder: string[] = [];
 
-  const resp = await withRetry(
-    async () => {
-      const token = await getAccessToken();
-      const fetchPromise = fetch(endpoint, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const r = await Promise.race([
-        fetchPromise,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`HTTP request timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
-        ),
-      ]);
-      if (r.status >= 500 && r.status < 600) {
-        throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 300)}`);
-      }
-      return r;
-    },
-    { label: "keyframe-nano-banana-pro" },
-  );
+  parts.push(inlinePart(input.templateFirstFrame));
+  refOrder.push("scene reference (target environment, lighting, color palette, and composition style)");
 
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(
-      `[keyframe] Nano Banana Pro HTTP ${resp.status}: ${errText.slice(0, 400)}`,
-    );
+  for (let i = 0; i < input.products.length; i++) {
+    parts.push(inlinePart(input.products[i]));
+    refOrder.push(`product ${i + 1} to feature: ${sanitiseProductDescription(input.products[i].description).slice(0, 80)}`);
   }
 
-  const data = await resp.json();
-  const candidate = data.candidates?.[0];
-  const imagePart = candidate?.content?.parts?.find(
-    (p: any) => p.inlineData?.data,
+  const productList = input.products
+    .map((p, i) => `(${i + 1}) ${sanitiseProductDescription(p.description)}`)
+    .join("; ");
+  const refList = refOrder.map((label, i) => `Image ${i + 1}: ${label}`).join("\n");
+
+  const prompt = [
+    "Generate a single photorealistic PRODUCT HERO photograph. NO PEOPLE. No subject, no model, no person — just the product(s) presented in the scene.",
+    "",
+    "REFERENCE IMAGES (in order):",
+    refList,
+    "",
+    "PRODUCT (MUST APPEAR IN FULL):",
+    `Render the following product(s) as the visual subject of the frame: ${productList}. Match every detail of each product's visual reference — colors, materials, finish, label/text, silhouette, proportions. Do NOT render any human, hand, body part, or person in the frame.`,
+    "",
+    "SCENE:",
+    input.backgroundDescription
+      ? `Place the product(s) in this environment: ${input.backgroundDescription}.`
+      : "Place the product(s) in the environment shown in the scene reference image.",
+    "Match the scene reference's color palette, lighting style (direction, hardness, color temperature), depth of field, and overall composition mood. The product is the hero — the rest of the frame supports it.",
+    "",
+    input.shotDescription
+      ? `SHOT DIRECTION: ${input.shotDescription.replace(/\s+/g, " ").trim().slice(0, 400)}`
+      : "",
+    "",
+    "Output: a single 9:16 vertical photograph, professional commercial product photography quality. The subject of the photo is the PRODUCT, not a person — there must be no human anywhere in the image.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  console.log(
+    `[keyframe][product-only] Nano Banana Pro — ${input.products.length}-product hero, ${parts.length} ref images`,
   );
+  console.log(`[keyframe][product-only] prompt:`, prompt.slice(0, 400).replace(/\n/g, " "));
 
-  if (!imagePart) {
-    const finishReason = candidate?.finishReason ?? "unknown";
-    const textPart = candidate?.content?.parts?.find((p: any) => p.text)?.text;
-    throw new Error(
-      `[keyframe] Nano Banana Pro returned no image (finishReason=${finishReason}): ${textPart?.slice(0, 200) ?? JSON.stringify(data).slice(0, 300)}`,
-    );
-  }
-
-  const imageBytes = Buffer.from(imagePart.inlineData.data, "base64");
-  const mimeType = imagePart.inlineData.mimeType ?? "image/png";
-  console.log(`[keyframe] Nano Banana Pro SUCCESS — ${imageBytes.length} bytes, ${mimeType}`);
-  return { imageBytes, mimeType };
+  const result = await callNanoBananaPro(prompt, parts, "keyframe-product-only-nano-banana-pro");
+  console.log(`[keyframe][product-only] Nano Banana Pro SUCCESS — ${result.imageBytes.length} bytes, ${result.mimeType}`);
+  return result;
 }

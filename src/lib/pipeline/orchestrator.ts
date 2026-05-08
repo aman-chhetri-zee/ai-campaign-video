@@ -4,7 +4,7 @@ import { resolve, join } from "node:path";
 import ffmpeg from "fluent-ffmpeg";
 import { analyzeReferenceFace } from "./face-analysis";
 import { orchestratePrompts } from "./orchestrate";
-import { compositeKeyframe } from "./keyframe";
+import { compositeKeyframe, compositeProductOnlyKeyframe } from "./keyframe";
 import { inferFramingScope } from "./framing";
 import { judgeKeyframe } from "./judge";
 import { generateVideoFromKeyframe } from "./kling";
@@ -24,6 +24,9 @@ import type {
   TemplateMetadata,
   ProductMetadata,
   Look,
+  MotionScriptEntry,
+  OutfitSegment,
+  SubjectState,
 } from "./types";
 
 const VERCEL_DEPLOYMENT_URL =
@@ -135,18 +138,65 @@ function buildProductDescription(p: ProductAsset): string {
 function pickOutfitSegment(
   metadata: TemplateMetadata,
   look_index: number,
-): { index: number; segment: { t_start: number; t_end: number; shot_indices: number[] } } {
+): { index: number; segment: OutfitSegment } {
   const segments = metadata.outfit_segments && metadata.outfit_segments.length > 0
     ? metadata.outfit_segments
-    : [
+    : ([
         {
           t_start: metadata.motion_script[0]?.t_start ?? 0,
           t_end: metadata.motion_script.at(-1)?.t_end ?? 1,
           shot_indices: metadata.motion_script.map((_, i) => i),
         },
-      ];
+      ] as OutfitSegment[]);
   const idx = look_index % segments.length;
   return { index: idx, segment: segments[idx] };
+}
+
+// Expand an outfit_segment's subject_states (if present) into per-state groups.
+// Each group has its own state, shot_indices, motion_script entries, and
+// derived t_start/t_end. When subject_states is omitted (legacy metadata),
+// returns a single "wearing" group covering the whole segment — this preserves
+// today's behavior for all existing templates.
+type StateGroup = {
+  state: SubjectState;
+  shot_indices: number[];
+  motion_script_entries: MotionScriptEntry[];
+  t_start: number;
+  t_end: number;
+};
+
+function expandSegmentStates(
+  segment: OutfitSegment,
+  motionScript: MotionScriptEntry[],
+): StateGroup[] {
+  if (!segment.subject_states || segment.subject_states.length === 0) {
+    const entries = segment.shot_indices
+      .map((i) => motionScript[i])
+      .filter(Boolean) as MotionScriptEntry[];
+    return [
+      {
+        state: "wearing",
+        shot_indices: segment.shot_indices,
+        motion_script_entries: entries,
+        t_start: segment.t_start,
+        t_end: segment.t_end,
+      },
+    ];
+  }
+  return segment.subject_states.map((s) => {
+    const entries = s.shot_indices
+      .map((i) => motionScript[i])
+      .filter(Boolean) as MotionScriptEntry[];
+    const t_start = entries.length > 0 ? entries[0].t_start : segment.t_start;
+    const t_end = entries.length > 0 ? entries.at(-1)!.t_end : segment.t_end;
+    return {
+      state: s.state,
+      shot_indices: s.shot_indices,
+      motion_script_entries: entries,
+      t_start,
+      t_end,
+    };
+  });
 }
 
 async function processLook(args: {
@@ -667,6 +717,8 @@ export async function runPipeline(
       const multishotKeyframeBlobUrls: string[] = [];
       const multishotShotPlan: {
         outfit_index: number;
+        state: SubjectState;
+        shot_indices: number[];
         t_start: number;
         t_end: number;
         motion_prompt: string;
@@ -675,19 +727,37 @@ export async function runPipeline(
       const multishotProductRefSet = new Set<string>();
 
       // Single-outfit special case — when there's exactly one outfit slot AND
-      // one look, Seedance's reference_video mode auto-detects shot boundaries
-      // from the reference video AND rotates through reference_image_urls
-      // across those perceived shots, which bleeds different outfits when
-      // multiple distinct images are sent. We keep the reference_video (so
-      // motion still matches template choreography) but drop product/identity
-      // refs and send ONLY the keyframe — Seedance has nothing to rotate
-      // through, so the same outfit appears in every perceived shot.
+      // one look AND the segment has no mixed subject_states (i.e., every shot
+      // is "wearing"), Seedance's reference_video mode auto-detects shot
+      // boundaries and rotates through reference_image_urls across them, which
+      // bleeds different outfits when multiple distinct images are sent. We
+      // keep the reference_video (so motion still matches template choreography)
+      // but drop product/identity refs and send ONLY the keyframe — Seedance
+      // has nothing to rotate through, so the same outfit appears in every
+      // perceived shot.
+      //
+      // For ad-style templates with mixed subject_states (template-7), this
+      // shortcut would discard the product-only keyframes. We detect that and
+      // fall through to the regular multishot path so all keyframes get used.
+      const hasMixedSubjectStates =
+        (template.metadata.outfit_segments?.length ?? 0) > 0 &&
+        (template.metadata.outfit_segments ?? []).some(
+          (seg) =>
+            seg.subject_states &&
+            seg.subject_states.length > 1 &&
+            new Set(seg.subject_states.map((s) => s.state)).size > 1,
+        );
       const isSingleOutfit =
         (template.metadata.outfit_segments?.length ?? 1) === 1 &&
-        run.looks.length === 1;
+        run.looks.length === 1 &&
+        !hasMixedSubjectStates;
       if (isSingleOutfit) {
         console.log(
           "[orchestrator] single-outfit template + single look — keeping reference_video for motion, but sending ONLY the keyframe as reference image (no identity / product refs) to prevent outfit bleeding while preserving template choreography",
+        );
+      } else if (hasMixedSubjectStates) {
+        console.log(
+          "[orchestrator] template has mixed subject_states (wearing + absent) — using multi-keyframe multishot path instead of single-outfit shortcut",
         );
       }
 
@@ -821,21 +891,106 @@ export async function runPipeline(
         if (kieStrategy === "multishot_single_call") {
           // Multishot mode — collect per-shot context and skip per-shot kie.ai calls.
           // The single multi-shot call happens once after the loop.
-          multishotKeyframeBlobUrls.push(keyframeBlobUrl);
-          multishotShotPlan.push({
-            outfit_index: i,
-            t_start: segStart,
-            t_end: segEnd,
-            motion_prompt: prompts.motion_prompt,
-            outfit_description: products
-              .map((p) => buildProductDescription(p))
-              .join("; "),
-          });
-          for (const u of productReferenceUrls) multishotProductRefSet.add(u);
-          console.log(
-            `[orchestrator][multishot] look ${i} keyframe + plan collected (segment ${segStart.toFixed(2)}-${segEnd.toFixed(2)}s)`,
+          //
+          // Expand the segment into state groups. Templates without
+          // subject_states declared yield 1 wearing group covering everything
+          // (legacy behavior preserved). Ad-style templates yield multiple
+          // groups including "absent" — render product-only keyframes for those.
+          const stateGroups = expandSegmentStates(
+            segmentPlan.segment,
+            template.metadata.motion_script,
           );
+
+          const outfitDescription = products
+            .map((p) => buildProductDescription(p))
+            .join("; ");
+
+          for (let g = 0; g < stateGroups.length; g++) {
+            const group = stateGroups[g];
+
+            if (group.state === "wearing") {
+              // The keyframe we already generated above is the wearing keyframe.
+              // Reuse its blob URL for any wearing groups (typically 1 per segment).
+              multishotKeyframeBlobUrls.push(keyframeBlobUrl);
+              const groupActions = group.motion_script_entries
+                .map((e) => e.action)
+                .join(" ")
+                .replace(/\s+/g, " ")
+                .trim();
+              multishotShotPlan.push({
+                outfit_index: i,
+                state: "wearing",
+                shot_indices: group.shot_indices,
+                t_start: group.t_start,
+                t_end: group.t_end,
+                motion_prompt: groupActions || prompts.motion_prompt,
+                outfit_description: outfitDescription,
+              });
+              for (const u of productReferenceUrls) multishotProductRefSet.add(u);
+              console.log(
+                `[orchestrator][multishot] look ${i} group ${g} (wearing) plan collected — shots [${group.shot_indices.join(",")}], ${group.t_start.toFixed(2)}-${group.t_end.toFixed(2)}s`,
+              );
+            } else {
+              // "absent" — generate one product-only keyframe PER motion_script
+              // entry in this group. Each entry gets its own scene-specific
+              // keyframe (e.g., crystals vs ice vs cave) so Seedance has a 1:1
+              // visual reference for each perceived shot. Without this, multiple
+              // absent shots share a single keyframe and Seedance falls back to
+              // reproducing the reference video's content for the unmapped shots.
+              const shotBackgrounds = template.metadata.shot_backgrounds ?? [];
+              for (let entryIdx = 0; entryIdx < group.motion_script_entries.length; entryIdx++) {
+                const entry = group.motion_script_entries[entryIdx];
+                const motionScriptIndex = group.shot_indices[entryIdx];
+                const shotBackground =
+                  shotBackgrounds[motionScriptIndex] ?? backgroundForLook;
+                const action = entry.action.replace(/\s+/g, " ").trim();
+                const productOnly = await compositeProductOnlyKeyframe({
+                  templateFirstFrame: { bytes: templateFirstFrame, mimeType: "image/png" },
+                  products: productImages,
+                  shotDescription: action,
+                  backgroundDescription: shotBackground,
+                });
+                const absentKeyframePath = join(
+                  runDir,
+                  `keyframe-${i}-absent-shot${motionScriptIndex}.png`,
+                );
+                writeFileSync(absentKeyframePath, productOnly.imageBytes);
+                const absentBlobUrl = await uploadToBlob(
+                  `keyframes/${run_id}/look-${i}-absent-shot${motionScriptIndex}.png`,
+                  productOnly.imageBytes,
+                  productOnly.mimeType,
+                );
+                console.log(
+                  `[orchestrator][multishot] look ${i} group ${g} (absent) shot ${motionScriptIndex} keyframe uploaded — scene "${shotBackground.slice(0, 60)}..."`,
+                );
+
+                multishotKeyframeBlobUrls.push(absentBlobUrl);
+                multishotShotPlan.push({
+                  outfit_index: i,
+                  state: "absent",
+                  shot_indices: [motionScriptIndex],
+                  t_start: entry.t_start,
+                  t_end: entry.t_end,
+                  motion_prompt: action || prompts.motion_prompt,
+                  outfit_description: outfitDescription,
+                });
+                for (const u of productReferenceUrls) multishotProductRefSet.add(u);
+              }
+            }
+          }
           continue; // skip per-shot call
+        }
+
+        // per_shot_conform path doesn't currently support subject_states —
+        // log a warning so the user knows to use multishot for ad-style templates.
+        const hasAbsent = expandSegmentStates(
+          segmentPlan.segment,
+          template.metadata.motion_script,
+        ).some((g) => g.state === "absent");
+        if (hasAbsent) {
+          console.warn(
+            `[orchestrator] look ${i} segment has subject_states with "absent" shots, but per_shot_conform mode treats every shot as "wearing". Use KIE_VIDEO_STRATEGY=multishot_single_call for ad-style templates.`,
+          );
         }
 
         // ── per_shot_conform path (default) ────────────────────────────────
@@ -993,6 +1148,14 @@ export async function runPipeline(
             .replace(/\s+/g, " ")
             .trim()
             .slice(0, 350);
+          if (s.state === "absent") {
+            return [
+              `SHOT ${idx + 1} (${s.t_start.toFixed(1)}-${s.t_end.toFixed(1)}s) — PRODUCT-ONLY HERO SHOT, NO PERSON:`,
+              `  - This shot must contain NO human, NO model, NO body part, NO subject. The frame shows only the product(s) in the scene — keyframe ${idx + 1} is the visual reference for this shot.`,
+              `  - DO NOT insert the person from the other shots' keyframes into this shot. Any human appearance here is INCORRECT.`,
+              `  - Action: ${action}`,
+            ].join("\n");
+          }
           return [
             `SHOT ${idx + 1} (${s.t_start.toFixed(1)}-${s.t_end.toFixed(1)}s):`,
             `  - The subject wears the EXACT outfit shown in keyframe ${idx + 1} — ${s.outfit_description}.`,
@@ -1001,17 +1164,40 @@ export async function runPipeline(
             `  - Action: ${action}`,
           ].join("\n");
         });
+
+        const hasAbsentShots = multishotShotPlan.some((s) => s.state === "absent");
+        // Build a single canonical product-name string from the user's products
+        // (deduped). Used for the product-substitution clause.
+        const allProductNames = Array.from(
+          new Set(multishotShotPlan.flatMap((s) => s.outfit_description.split("; "))),
+        )
+          .filter(Boolean)
+          .join("; ")
+          .slice(0, 600);
+
+        const headerLines = hasAbsentShots
+          ? [
+              `Multi-shot commercial video, ${fullDuration.toFixed(1)} seconds total, ${multishotShotPlan.length} shots. Some shots feature the subject with the product; other shots are PRODUCT-ONLY hero shots with no person in frame. Match the reference video's shot structure and timing exactly.`,
+              "Honor each shot's state — subject-present shots must show the subject; product-only shots must show NO person at all. Do not insert people into product-only shots, and do not omit the person from subject-present shots.",
+            ]
+          : [
+              `Multi-shot fashion video, ${fullDuration.toFixed(1)} seconds total, ${multishotShotPlan.length} shots.`,
+              "The subject changes outfits across the shots — match the reference video's shot structure and timing exactly.",
+            ];
+
         const multishotPrompt = [
-          `Multi-shot fashion video, ${fullDuration.toFixed(1)} seconds total, ${multishotShotPlan.length} shots.`,
-          "The subject changes outfits across the shots — match the reference video's shot structure and timing exactly.",
-          "Use jump cuts at the timestamps below to swap outfits. Keep the same person identity (face, body, hair) consistent across all shots.",
+          ...headerLines,
+          "Use jump cuts at the timestamps below. Keep identity consistent on shots that feature the subject; render product-only shots without any person.",
           "",
-          "STRICT OUTFIT-TO-SHOT BINDING (highest priority):",
-          "Each keyframe's outfit is bound to exactly ONE shot's timestamp range. The model MUST NOT redistribute, blend, swap, or repeat outfits across shots — even if some shots are short or some settings are revisited later in the reference video. Short or unique-setting shots must still show their assigned outfit; do not give those shots' outfits to longer or revisited shots.",
+          "PRODUCT SUBSTITUTION (highest priority alongside identity):",
+          `The product(s) visible in EVERY shot of the output must be the user's product(s) shown in the reference images: ${allProductNames}. The reference video MAY show a different product (the template's placeholder) — that placeholder is for choreography reference ONLY and must NOT appear in the output. Wherever the reference video shows its placeholder product (whether held by a person or as a hero shot), substitute the user's product in its place. Match every visible detail of the user's product (color, label, shape, finish, branding) exactly to the reference images. If you find yourself rendering the template's placeholder product instead of the user's product, that is INCORRECT.`,
+          "",
+          "STRICT SHOT-STATE BINDING:",
+          "Each keyframe is bound to its assigned shot's timestamp range. The model MUST NOT redistribute, blend, or repeat keyframes across shots — even if some shots are short or some settings are revisited. Short shots must still receive their assigned keyframe; longer / revisited shots must not steal short shots' material. Subject-bearing keyframes appear ONLY in their assigned (wearing) shots; product-only keyframes appear ONLY in their assigned (absent) shots.",
           "",
           ...shotLines,
           "",
-          "Identity match to the reference images is the absolute highest priority. Outfit-to-shot binding is the second highest priority — outranking motion fidelity and scene reproduction. Each shot must show the subject wearing the outfit assigned to that shot — do not blend or swap outfits between shots, ever.",
+          "Identity match (for subject-present shots) and product substitution (for ALL shots) are tied for highest priority. Shot-state binding is second. These three rules outrank motion fidelity and scene reproduction. Do not insert the subject into product-only shots, do not blend outfits between subject-present shots, and do not let the template's placeholder product appear in the output.",
         ].join("\n");
 
         console.log(
@@ -1023,16 +1209,28 @@ export async function runPipeline(
           progress_label: `Rendering multi-shot video (1 call, ${requestDuration}s)…`,
         });
 
+        // The keyframes already encode identity (the face/body baked in by
+        // Nano Banana Pro from the master + creator photo) and the products
+        // (wearing keyframes show the outfit; product-only keyframes show the
+        // product alone). Sending identity + product refs separately to kie.ai
+        // adds "loose" visual material that Seedance can treat as standalone
+        // shots, observed bleeding both for absent-shot templates (raw creator
+        // photo appearing as a still frame) and for multi-outfit templates
+        // (master subject's white-tee + jeans appearing in a graffiti shot).
+        // Drop both unconditionally — keyframes carry everything we need.
         const multishotResult = await generateMultiShotViaKieSeedance({
           keyframeUrls: multishotKeyframeBlobUrls,
-          identityReferenceUrls,
-          productReferenceUrls: Array.from(multishotProductRefSet),
+          identityReferenceUrls: undefined,
+          productReferenceUrls: undefined,
           motionReferenceUrl,
           motionPrompt: multishotPrompt,
           durationSeconds: requestDuration,
           aspectRatio: "9:16",
           resolution: "720p",
         });
+        console.log(
+          "[orchestrator][multishot] dropped identity + product refs (already encoded in keyframes) to prevent loose-image bleed",
+        );
 
         const rawSinglePath = join(runDir, "kie-multishot-raw.mp4");
         writeFileSync(rawSinglePath, multishotResult.videoBytes);
