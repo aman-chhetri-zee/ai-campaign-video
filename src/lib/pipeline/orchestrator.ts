@@ -125,6 +125,34 @@ function buildProductDescription(p: ProductAsset): string {
 }
 
 // ---------------------------------------------------------------------------
+// Lip-sync prompt augmentation
+// ---------------------------------------------------------------------------
+//
+// For templates with requires_lip_sync=true + a dialogue transcript, append
+// a clause to the motion_prompt that asks Seedance to render speaking-mouth
+// behavior throughout the clip. Seedance is NOT phoneme-aware — it can't
+// lip-sync to specific words — but this prompt makes the difference between
+// "static mouth" (today) and "mouth visibly articulating in a talking cadence"
+// (with the dialogue clause). Audio is NOT muxed onto the output for
+// lip-sync templates; the caller is expected to provide their own audio
+// downstream (e.g., TTS from the same dialogue text) if needed.
+function injectDialogueIntoPrompt(
+  motionPrompt: string,
+  dialogue: string | undefined,
+): string {
+  if (!dialogue || dialogue.trim().length === 0) return motionPrompt;
+  const trimmed = dialogue.trim().replace(/\s+/g, " ");
+  const clause = [
+    "",
+    "SPOKEN DIALOGUE THROUGHOUT THE VIDEO:",
+    `The subject is speaking the following dialogue across the entire duration of the clip: "${trimmed}"`,
+    "Render natural speaking behavior — the subject's mouth must be visibly active and articulating throughout the clip (NOT closed, NOT static). Open/close the mouth, move the jaw, shift lip shape at a natural conversational cadence that loosely matches the rhythm of the dialogue. Eyes should engage the camera with conversational expression. The subject should look like someone actively talking to a friend or to camera — not posing silently.",
+    "Do not synthesize or render audio for this dialogue — only the visual speaking behavior.",
+  ].join("\n");
+  return `${motionPrompt}${clause}`;
+}
+
+// ---------------------------------------------------------------------------
 // Outfit-driven segmentation
 // ---------------------------------------------------------------------------
 //
@@ -259,6 +287,19 @@ async function processLook(args: {
   if (sourcePrompt) {
     console.log(`[orchestrator] using source_prompt.txt for ${args.template.id} — overriding motion_prompt`);
     prompts.motion_prompt = sourcePrompt;
+  }
+
+  // Inject dialogue clause for lip-sync templates so the video model renders
+  // visible speaking-mouth behavior (still not phoneme-accurate, but better
+  // than static mouth).
+  if (args.template.metadata.requires_lip_sync && args.template.metadata.dialogue) {
+    prompts.motion_prompt = injectDialogueIntoPrompt(
+      prompts.motion_prompt,
+      args.template.metadata.dialogue,
+    );
+    console.log(
+      `[orchestrator] requires_lip_sync=true — injected dialogue into motion_prompt (${args.template.metadata.dialogue.length} chars)`,
+    );
   }
 
   // Stage 5 — keyframe
@@ -563,6 +604,17 @@ export async function runPipeline(
             console.log(`[orchestrator] using source_prompt.txt for ${template.id} — overriding motion_prompt`);
             seedanceMotionPrompt = sourcePrompt;
           }
+
+          // Inject dialogue clause for lip-sync templates.
+          if (template.metadata.requires_lip_sync && template.metadata.dialogue) {
+            seedanceMotionPrompt = injectDialogueIntoPrompt(
+              seedanceMotionPrompt,
+              template.metadata.dialogue,
+            );
+            console.log(
+              `[orchestrator][seedance] requires_lip_sync=true — injected dialogue (${template.metadata.dialogue.length} chars)`,
+            );
+          }
         }
 
         const productImages = products.map((p) => ({
@@ -663,9 +715,16 @@ export async function runPipeline(
         progress_label: "Muxing audio…",
       });
       const finalPath = join(runDir, "output.mp4");
-      const templateVideoPath = resolve("public", template.video_path);
+      // For lip-sync templates, do NOT mux the template's audio — the caller
+      // is expected to provide their own audio (e.g., TTS from dialogue) downstream.
+      const audioSource = template.metadata.requires_lip_sync
+        ? undefined
+        : resolve("public", template.video_path);
+      if (template.metadata.requires_lip_sync) {
+        console.log("[orchestrator][seedance] requires_lip_sync=true — skipping template audio mux");
+      }
       // concatClips with a single clip just copies + muxes audio
-      await concatClips([rawPath], finalPath, templateVideoPath);
+      await concatClips([rawPath], finalPath, audioSource);
 
       return updateRun(run_id, {
         status: "succeeded",
@@ -806,6 +865,19 @@ export async function runPipeline(
         if (sourcePrompt) {
           console.log(`[orchestrator] using source_prompt.txt for ${template.id} — overriding motion_prompt`);
           prompts.motion_prompt = sourcePrompt;
+        }
+
+        // Inject dialogue clause for lip-sync templates.
+        if (template.metadata.requires_lip_sync && template.metadata.dialogue) {
+          prompts.motion_prompt = injectDialogueIntoPrompt(
+            prompts.motion_prompt,
+            template.metadata.dialogue,
+          );
+          if (i === 0) {
+            console.log(
+              `[orchestrator][kie-seedance] requires_lip_sync=true — injected dialogue (${template.metadata.dialogue.length} chars)`,
+            );
+          }
         }
 
         const productImages = products.map((p) => ({
@@ -1124,7 +1196,14 @@ export async function runPipeline(
             progress_label: "Muxing template audio…",
           });
           const finalPathSingle = join(runDir, "output.mp4");
-          const templateVideoPathSingle = resolve("public", template.video_path);
+          const templateVideoPathSingle = template.metadata.requires_lip_sync
+            ? undefined
+            : resolve("public", template.video_path);
+          if (template.metadata.requires_lip_sync) {
+            console.log(
+              "[orchestrator][multishot] requires_lip_sync=true — skipping template audio mux (single-outfit path)",
+            );
+          }
           await concatClips([conformedSinglePath], finalPathSingle, templateVideoPathSingle);
           ffmpeg.ffprobe(finalPathSingle, (err, data) => {
             if (err) return;
@@ -1260,7 +1339,14 @@ export async function runPipeline(
           progress_label: "Muxing template audio…",
         });
         const finalPathMs = join(runDir, "output.mp4");
-        const templateVideoPathMs = resolve("public", template.video_path);
+        const templateVideoPathMs = template.metadata.requires_lip_sync
+          ? undefined
+          : resolve("public", template.video_path);
+        if (template.metadata.requires_lip_sync) {
+          console.log(
+            "[orchestrator][multishot] requires_lip_sync=true — skipping template audio mux (multi-keyframe path)",
+          );
+        }
         await concatClips([conformedSinglePath], finalPathMs, templateVideoPathMs);
 
         ffmpeg.ffprobe(finalPathMs, (err, data) => {
@@ -1282,7 +1368,14 @@ export async function runPipeline(
         progress_label: "Stitching final video…",
       });
       const finalPath = join(runDir, "output.mp4");
-      const templateVideoPath = resolve("public", template.video_path);
+      const templateVideoPath = template.metadata.requires_lip_sync
+        ? undefined
+        : resolve("public", template.video_path);
+      if (template.metadata.requires_lip_sync) {
+        console.log(
+          "[orchestrator] requires_lip_sync=true — skipping template audio mux (per_shot_conform path)",
+        );
+      }
       await concatClips(clipPaths, finalPath, templateVideoPath);
 
       // Verify the final output with ffprobe
@@ -1348,7 +1441,14 @@ export async function runPipeline(
       progress_label: "Stitching final video…",
     });
     const finalPath = join(runDir, "output.mp4");
-    const templateVideoPath = resolve("public", template.video_path);
+    const templateVideoPath = template.metadata.requires_lip_sync
+      ? undefined
+      : resolve("public", template.video_path);
+    if (template.metadata.requires_lip_sync) {
+      console.log(
+        "[orchestrator][kling] requires_lip_sync=true — skipping template audio mux",
+      );
+    }
     await concatClips(clipPaths, finalPath, templateVideoPath);
 
     return updateRun(run_id, {

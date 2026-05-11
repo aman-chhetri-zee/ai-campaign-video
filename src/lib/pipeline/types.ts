@@ -48,6 +48,13 @@ export type TemplateMetadata = {
   energy: string;                  // e.g. "high-energy fast-cut montage", "slow cinematic", "punchy"
   shot_backgrounds: string[];      // short descriptions of DISTINCT backgrounds across the template's shots, in order
   outfit_segments: OutfitSegment[]; // outfit slots in this template — drives per-look segmentation in the orchestrator
+  // ── Lip-sync (OPTIONAL) ──────────────────────────────────────────────────
+  // When requires_lip_sync is true, the orchestrator runs a post-process
+  // pass on the final mp4 to re-sync mouth movements with the template's
+  // audio track. dialogue holds the spoken transcript — used as a hint for
+  // the lip-sync model and as input for future TTS-based voice swaps.
+  requires_lip_sync?: boolean;
+  dialogue?: string;
 };
 
 // ----- Stage 2 output -----
