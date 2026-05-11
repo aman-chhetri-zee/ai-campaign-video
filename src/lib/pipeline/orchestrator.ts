@@ -128,14 +128,13 @@ function buildProductDescription(p: ProductAsset): string {
 // Lip-sync prompt augmentation
 // ---------------------------------------------------------------------------
 //
-// For templates with requires_lip_sync=true + a dialogue transcript, append
-// a clause to the motion_prompt that asks Seedance to render speaking-mouth
-// behavior throughout the clip. Seedance is NOT phoneme-aware — it can't
-// lip-sync to specific words — but this prompt makes the difference between
-// "static mouth" (today) and "mouth visibly articulating in a talking cadence"
-// (with the dialogue clause). Audio is NOT muxed onto the output for
-// lip-sync templates; the caller is expected to provide their own audio
-// downstream (e.g., TTS from the same dialogue text) if needed.
+// Seedance 2.0 supports native dialogue + lip-sync: when speech is wrapped in
+// double quotes in the prompt and generate_audio is true, the model produces
+// both the spoken audio and mouth movements aligned to it (8+ languages).
+// We use that path here — no separate TTS, no separate lip-sync model.
+// The orchestrator must also pass generateAudio: true at the kie.ai call
+// site (see threading below) and SKIP the template audio mux step so
+// Seedance's generated audio is preserved.
 function injectDialogueIntoPrompt(
   motionPrompt: string,
   dialogue: string | undefined,
@@ -144,10 +143,10 @@ function injectDialogueIntoPrompt(
   const trimmed = dialogue.trim().replace(/\s+/g, " ");
   const clause = [
     "",
-    "SPOKEN DIALOGUE THROUGHOUT THE VIDEO:",
-    `The subject is speaking the following dialogue across the entire duration of the clip: "${trimmed}"`,
-    "Render natural speaking behavior — the subject's mouth must be visibly active and articulating throughout the clip (NOT closed, NOT static). Open/close the mouth, move the jaw, shift lip shape at a natural conversational cadence that loosely matches the rhythm of the dialogue. Eyes should engage the camera with conversational expression. The subject should look like someone actively talking to a friend or to camera — not posing silently.",
-    "Do not synthesize or render audio for this dialogue — only the visual speaking behavior.",
+    "SPOKEN DIALOGUE:",
+    `The subject says the following words across the clip, in their natural speaking voice:`,
+    `"${trimmed}"`,
+    "Generate the spoken audio and synchronize the subject's mouth movements and facial expression to match the dialogue exactly. Natural conversational cadence, appropriate breath pauses, eye contact with camera consistent with someone speaking directly to the viewer.",
   ].join("\n");
   return `${motionPrompt}${clause}`;
 }
@@ -1094,6 +1093,7 @@ export async function runPipeline(
           durationSeconds: targetDurationSeconds,
           aspectRatio: "9:16",
           resolution: "720p",
+          generateAudio: template.metadata.requires_lip_sync === true,
         });
 
         const rawClipPath = join(runDir, `clip-${i}-raw.mp4`);
@@ -1172,6 +1172,7 @@ export async function runPipeline(
             durationSeconds: requestDuration,
             aspectRatio: "9:16",
             resolution: "720p",
+            generateAudio: template.metadata.requires_lip_sync === true,
           });
           const rawSinglePath = join(runDir, "kie-multishot-raw.mp4");
           writeFileSync(rawSinglePath, simpleResult.videoBytes);
@@ -1306,6 +1307,7 @@ export async function runPipeline(
           durationSeconds: requestDuration,
           aspectRatio: "9:16",
           resolution: "720p",
+          generateAudio: template.metadata.requires_lip_sync === true,
         });
         console.log(
           "[orchestrator][multishot] dropped identity + product refs (already encoded in keyframes) to prevent loose-image bleed",

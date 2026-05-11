@@ -132,11 +132,17 @@ export async function generateViaKieSeedance(input: {
   durationSeconds?: 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
   aspectRatio?: "9:16" | "16:9" | "1:1" | "4:3" | "3:4" | "21:9";
   resolution?: "480p" | "720p" | "1080p";
+  /** When true, Seedance generates audio (dialogue / SFX / BGM) and lip-syncs
+   *  mouth movements to any dialogue wrapped in double quotes inside the
+   *  motionPrompt. Default false — non-lip-sync templates stay silent and we
+   *  mux template audio downstream as today. */
+  generateAudio?: boolean;
 }): Promise<{ videoBytes: Buffer; videoUrl: string }> {
   const model = getModelId();
   const resolution = input.resolution ?? getResolution();
   const aspectRatio = input.aspectRatio ?? "9:16";
   const duration = input.durationSeconds ?? 5;
+  const generateAudio = input.generateAudio ?? false;
 
   const allRefImages = [
     input.keyframeUrl,
@@ -145,7 +151,7 @@ export async function generateViaKieSeedance(input: {
   ].filter((u, i, a) => a.indexOf(u) === i).slice(0, 9);
 
   console.log(
-    `[kie-seedance] sending ${allRefImages.length} reference images (1 keyframe + ${input.identityReferenceUrls?.length ?? 0} identity + ${input.productReferenceUrls?.length ?? 0} products)`,
+    `[kie-seedance] sending ${allRefImages.length} reference images (1 keyframe + ${input.identityReferenceUrls?.length ?? 0} identity + ${input.productReferenceUrls?.length ?? 0} products); generate_audio=${generateAudio}`,
   );
 
   const reqInput: Record<string, unknown> = {
@@ -153,7 +159,7 @@ export async function generateViaKieSeedance(input: {
     resolution,
     aspect_ratio: aspectRatio,
     duration,
-    generate_audio: false,
+    generate_audio: generateAudio,
     nsfw_checker: false,
   };
   if (input.motionReferenceUrl) {
@@ -197,10 +203,15 @@ export async function generateMultiShotViaKieSeedance(input: {
   durationSeconds: 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
   aspectRatio?: "9:16" | "16:9" | "1:1";
   resolution?: "480p" | "720p" | "1080p";
+  /** When true, Seedance generates audio (dialogue / SFX / BGM) and lip-syncs
+   *  mouth movements to any dialogue wrapped in double quotes inside the
+   *  motionPrompt. Default false. */
+  generateAudio?: boolean;
 }): Promise<{ videoBytes: Buffer; videoUrl: string }> {
   const model = getModelId();
   const resolution = input.resolution ?? getResolution();
   const aspectRatio = input.aspectRatio ?? "9:16";
+  const generateAudio = input.generateAudio ?? false;
 
   // Build deduped, capped reference image list (kie.ai max 9):
   // keyframes first (each carries an outfit), then identity, then products.
@@ -211,7 +222,7 @@ export async function generateMultiShotViaKieSeedance(input: {
   ].filter((u, i, a) => a.indexOf(u) === i).slice(0, 9);
 
   console.log(
-    `[kie-seedance][multishot] sending ${allRefImages.length} reference images (${input.keyframeUrls.length} keyframes + ${input.identityReferenceUrls?.length ?? 0} identity + ${input.productReferenceUrls?.length ?? 0} products, deduped/capped to 9)`,
+    `[kie-seedance][multishot] sending ${allRefImages.length} reference images (${input.keyframeUrls.length} keyframes + ${input.identityReferenceUrls?.length ?? 0} identity + ${input.productReferenceUrls?.length ?? 0} products, deduped/capped to 9); generate_audio=${generateAudio}`,
   );
 
   const reqInput: Record<string, unknown> = {
@@ -219,7 +230,7 @@ export async function generateMultiShotViaKieSeedance(input: {
     resolution,
     aspect_ratio: aspectRatio,
     duration: input.durationSeconds,
-    generate_audio: false,
+    generate_audio: generateAudio,
     nsfw_checker: false,
     reference_image_urls: allRefImages,
     reference_video_urls: [input.motionReferenceUrl],
