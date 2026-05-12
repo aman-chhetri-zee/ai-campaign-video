@@ -42,5 +42,7 @@
   ],
   "outfit_segments": [
     { "t_start": 0, "t_end": 15, "shot_indices": [0, 1, 2] }
-  ]
+  ],
+  "requires_lip_sync": true,
+  "dialogue": "I've been using this tumbler every day lately, and I didn't expect to like it this much. My drinks stay cold literally all day, which is kind of crazy. It doesn't leak, it fits in my car, and the handle is actually super comfortable. I just end up taking it with me everywhere now."
 }

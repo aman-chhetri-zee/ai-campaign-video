@@ -1,0 +1,21 @@
+{
+  "primary_item_type": "shirt",
+  "items": [
+    {
+      "item_type": "shirt",
+      "attachment_strategy": "worn_on_torso",
+      "side_preference": "none",
+      "visual_description": "A long-sleeved button-up shirt in a light beige color with a tonal vertical pinstripe pattern. The shirt has a relaxed fit, a camp collar, and a button-front closure with small, matching beige buttons. There is a single patch pocket on the left side of the chest. The fabric appears lightweight with a subtle texture."
+    }
+  ],
+  "overall_description": "This image displays a single, elegant long-sleeved shirt in a neutral beige hue. It has a pajama-style design with a relaxed fit, a camp collar, and a subtle tonal pinstripe pattern, creating a look of sophisticated comfort.",
+  "key_features": [
+    "Light beige color",
+    "Tonal vertical pinstripe pattern",
+    "Camp collar",
+    "Long sleeves",
+    "Button-front closure",
+    "Left chest patch pocket",
+    "Relaxed fit"
+  ]
+}

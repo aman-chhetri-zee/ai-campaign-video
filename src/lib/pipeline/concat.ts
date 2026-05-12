@@ -20,13 +20,20 @@ export async function concatClips(
   clipPaths: string[],
   outputPath: string,
   audioSourcePath?: string,
+  /** When true, carry the source clips' audio streams through normalization
+   *  and concatenation. Used for lip-sync clips where Seedance generated the
+   *  dialogue audio inside the clip itself — stripping it would silence the
+   *  output. Mutually exclusive with audioSourcePath (preserveAudio wins). */
+  preserveAudio = false,
 ): Promise<void> {
   if (clipPaths.length === 0) throw new Error("concatClips: no clips");
 
   mkdirSync(dirname(outputPath), { recursive: true });
-  const wantsAudio = !!audioSourcePath && existsSync(audioSourcePath);
+  const wantsAudio = !preserveAudio && !!audioSourcePath && existsSync(audioSourcePath);
 
-  // Step 1: normalize each clip to canonical format (silent — we'll mux audio after)
+  // Step 1: normalize each clip to canonical format. Audio is dropped here
+  // for the legacy template-audio-mux path (we'll mux later); preserved here
+  // for the lip-sync path (Seedance's audio rides through).
   const tmpRoot = join(tmpdir(), `concat-norm-${Date.now()}`);
   mkdirSync(tmpRoot, { recursive: true });
   const normalized: string[] = [];
@@ -46,7 +53,7 @@ export async function concatClips(
           "-preset veryfast",
           "-crf 23",
           "-pix_fmt yuv420p",
-          "-an",
+          ...(preserveAudio ? ["-c:a", "aac", "-b:a", "192k"] : ["-an"]),
           "-fflags +genpts",
           "-movflags +faststart",
         ])
@@ -66,14 +73,18 @@ export async function concatClips(
     copyFileSync(normalized[0], silentPath);
   } else {
     const concatFilter =
-      normalized.map((_, i) => `[${i}:v:0]`).join("") +
-      `concat=n=${normalized.length}:v=1:a=0[outv]`;
+      normalized
+        .map((_, i) => (preserveAudio ? `[${i}:v:0][${i}:a:0]` : `[${i}:v:0]`))
+        .join("") +
+      (preserveAudio
+        ? `concat=n=${normalized.length}:v=1:a=1[outv][outa]`
+        : `concat=n=${normalized.length}:v=1:a=0[outv]`);
 
     await new Promise<void>((resolve, reject) => {
       let cmd = ffmpeg();
       for (const n of normalized) cmd = cmd.input(n);
       cmd
-        .complexFilter(concatFilter, ["outv"])
+        .complexFilter(concatFilter, preserveAudio ? ["outv", "outa"] : ["outv"])
         .videoCodec("libx264")
         .outputOptions([
           "-preset veryfast",
@@ -81,7 +92,7 @@ export async function concatClips(
           "-pix_fmt yuv420p",
           "-fflags +genpts",
           "-movflags +faststart",
-          "-an",
+          ...(preserveAudio ? ["-c:a", "aac", "-b:a", "192k"] : ["-an"]),
         ])
         .output(silentPath)
         .on("end", () => resolve())

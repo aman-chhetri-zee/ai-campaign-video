@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "high_heeled_sandals",
+  "items": [
+    {
+      "item_type": "high_heeled_sandals",
+      "attachment_strategy": "worn_on_legs",
+      "side_preference": "none",
+      "visual_description": "A pair of off-white patent leather stiletto sandals. They feature a minimalist design with a single thin strap over the toes and a delicate, adjustable ankle strap with a small gold-tone buckle. The heel is a high, slender stiletto in the same off-white color. The footbed is black with 'TOM FORD' and 'MADE IN ITALY' printed in white."
+    }
+  ],
+  "overall_description": "A pair of elegant Tom Ford high-heeled sandals in a glossy off-white patent leather finish. The minimalist design features thin straps, a high stiletto heel, and a contrasting black insole, creating a chic and sophisticated look.",
+  "key_features": [
+    "Glossy off-white patent leather",
+    "High stiletto heel",
+    "Minimalist thin strap design",
+    "Adjustable ankle strap with gold-tone buckle",
+    "Contrasting black insole with designer logo"
+  ]
+}

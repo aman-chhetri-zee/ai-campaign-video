@@ -125,6 +125,33 @@ function buildProductDescription(p: ProductAsset): string {
 }
 
 // ---------------------------------------------------------------------------
+// Lip-sync prompt augmentation
+// ---------------------------------------------------------------------------
+//
+// Seedance 2.0 supports native dialogue + lip-sync: when speech is wrapped in
+// double quotes in the prompt and generate_audio is true, the model produces
+// both the spoken audio and mouth movements aligned to it (8+ languages).
+// We use that path here — no separate TTS, no separate lip-sync model.
+// The orchestrator must also pass generateAudio: true at the kie.ai call
+// site (see threading below) and SKIP the template audio mux step so
+// Seedance's generated audio is preserved.
+function injectDialogueIntoPrompt(
+  motionPrompt: string,
+  dialogue: string | undefined,
+): string {
+  if (!dialogue || dialogue.trim().length === 0) return motionPrompt;
+  const trimmed = dialogue.trim().replace(/\s+/g, " ");
+  const clause = [
+    "",
+    "SPOKEN DIALOGUE:",
+    `The subject says the following words across the clip, in their natural speaking voice:`,
+    `"${trimmed}"`,
+    "Generate the spoken audio and synchronize the subject's mouth movements and facial expression to match the dialogue exactly. Natural conversational cadence, appropriate breath pauses, eye contact with camera consistent with someone speaking directly to the viewer.",
+  ].join("\n");
+  return `${motionPrompt}${clause}`;
+}
+
+// ---------------------------------------------------------------------------
 // Outfit-driven segmentation
 // ---------------------------------------------------------------------------
 //
@@ -259,6 +286,19 @@ async function processLook(args: {
   if (sourcePrompt) {
     console.log(`[orchestrator] using source_prompt.txt for ${args.template.id} — overriding motion_prompt`);
     prompts.motion_prompt = sourcePrompt;
+  }
+
+  // Inject dialogue clause for lip-sync templates so the video model renders
+  // visible speaking-mouth behavior (still not phoneme-accurate, but better
+  // than static mouth).
+  if (args.template.metadata.requires_lip_sync && args.template.metadata.dialogue) {
+    prompts.motion_prompt = injectDialogueIntoPrompt(
+      prompts.motion_prompt,
+      args.template.metadata.dialogue,
+    );
+    console.log(
+      `[orchestrator] requires_lip_sync=true — injected dialogue into motion_prompt (${args.template.metadata.dialogue.length} chars)`,
+    );
   }
 
   // Stage 5 — keyframe
@@ -563,6 +603,17 @@ export async function runPipeline(
             console.log(`[orchestrator] using source_prompt.txt for ${template.id} — overriding motion_prompt`);
             seedanceMotionPrompt = sourcePrompt;
           }
+
+          // Inject dialogue clause for lip-sync templates.
+          if (template.metadata.requires_lip_sync && template.metadata.dialogue) {
+            seedanceMotionPrompt = injectDialogueIntoPrompt(
+              seedanceMotionPrompt,
+              template.metadata.dialogue,
+            );
+            console.log(
+              `[orchestrator][seedance] requires_lip_sync=true — injected dialogue (${template.metadata.dialogue.length} chars)`,
+            );
+          }
         }
 
         const productImages = products.map((p) => ({
@@ -663,9 +714,16 @@ export async function runPipeline(
         progress_label: "Muxing audio…",
       });
       const finalPath = join(runDir, "output.mp4");
-      const templateVideoPath = resolve("public", template.video_path);
+      // For lip-sync templates, do NOT mux the template's audio — the caller
+      // is expected to provide their own audio (e.g., TTS from dialogue) downstream.
+      const audioSource = template.metadata.requires_lip_sync
+        ? undefined
+        : resolve("public", template.video_path);
+      if (template.metadata.requires_lip_sync) {
+        console.log("[orchestrator][seedance] requires_lip_sync=true — skipping template audio mux");
+      }
       // concatClips with a single clip just copies + muxes audio
-      await concatClips([rawPath], finalPath, templateVideoPath);
+      await concatClips([rawPath], finalPath, audioSource);
 
       return updateRun(run_id, {
         status: "succeeded",
@@ -806,6 +864,19 @@ export async function runPipeline(
         if (sourcePrompt) {
           console.log(`[orchestrator] using source_prompt.txt for ${template.id} — overriding motion_prompt`);
           prompts.motion_prompt = sourcePrompt;
+        }
+
+        // Inject dialogue clause for lip-sync templates.
+        if (template.metadata.requires_lip_sync && template.metadata.dialogue) {
+          prompts.motion_prompt = injectDialogueIntoPrompt(
+            prompts.motion_prompt,
+            template.metadata.dialogue,
+          );
+          if (i === 0) {
+            console.log(
+              `[orchestrator][kie-seedance] requires_lip_sync=true — injected dialogue (${template.metadata.dialogue.length} chars)`,
+            );
+          }
         }
 
         const productImages = products.map((p) => ({
@@ -1022,6 +1093,7 @@ export async function runPipeline(
           durationSeconds: targetDurationSeconds,
           aspectRatio: "9:16",
           resolution: "720p",
+          generateAudio: template.metadata.requires_lip_sync === true,
         });
 
         const rawClipPath = join(runDir, `clip-${i}-raw.mp4`);
@@ -1045,6 +1117,7 @@ export async function runPipeline(
           outputPath: clipPath,
           actualDurationSeconds: actualDuration,
           targetDurationSeconds: segmentSpan,
+          preserveAudio: template.metadata.requires_lip_sync === true,
         });
         console.log(
           `[orchestrator] look ${i} conform: target=${segmentSpan.toFixed(2)}s, speedup=${conform.speedupApplied.toFixed(2)}x${conform.trimmed ? " (trimmed)" : ""}, final=${conform.finalDurationSeconds.toFixed(2)}s`,
@@ -1100,6 +1173,7 @@ export async function runPipeline(
             durationSeconds: requestDuration,
             aspectRatio: "9:16",
             resolution: "720p",
+            generateAudio: template.metadata.requires_lip_sync === true,
           });
           const rawSinglePath = join(runDir, "kie-multishot-raw.mp4");
           writeFileSync(rawSinglePath, simpleResult.videoBytes);
@@ -1113,19 +1187,35 @@ export async function runPipeline(
             `[orchestrator][multishot] single-outfit kie.ai returned ${actualDur.toFixed(2)}s clip (target = ${fullDuration.toFixed(2)}s)`,
           );
           const conformedSinglePath = join(runDir, "kie-multishot-conformed.mp4");
+          const preserveAudio = template.metadata.requires_lip_sync === true;
           await conformClipDuration({
             inputPath: rawSinglePath,
             outputPath: conformedSinglePath,
             actualDurationSeconds: actualDur,
             targetDurationSeconds: fullDuration,
+            preserveAudio,
           });
           updateRun(run_id, {
             status: "concatenating",
-            progress_label: "Muxing template audio…",
+            progress_label: preserveAudio
+              ? "Finalizing lip-sync output…"
+              : "Muxing template audio…",
           });
           const finalPathSingle = join(runDir, "output.mp4");
-          const templateVideoPathSingle = resolve("public", template.video_path);
-          await concatClips([conformedSinglePath], finalPathSingle, templateVideoPathSingle);
+          const templateVideoPathSingle = preserveAudio
+            ? undefined
+            : resolve("public", template.video_path);
+          if (preserveAudio) {
+            console.log(
+              "[orchestrator][multishot] requires_lip_sync=true — preserving Seedance audio, skipping template audio mux (single-outfit path)",
+            );
+          }
+          await concatClips(
+            [conformedSinglePath],
+            finalPathSingle,
+            templateVideoPathSingle,
+            preserveAudio,
+          );
           ffmpeg.ffprobe(finalPathSingle, (err, data) => {
             if (err) return;
             console.log(
@@ -1192,13 +1282,35 @@ export async function runPipeline(
           "PRODUCT SUBSTITUTION (highest priority alongside identity):",
           `The product(s) visible in EVERY shot of the output must be the user's product(s) shown in the reference images: ${allProductNames}. The reference video MAY show a different product (the template's placeholder) — that placeholder is for choreography reference ONLY and must NOT appear in the output. Wherever the reference video shows its placeholder product (whether held by a person or as a hero shot), substitute the user's product in its place. Match every visible detail of the user's product (color, label, shape, finish, branding) exactly to the reference images. If you find yourself rendering the template's placeholder product instead of the user's product, that is INCORRECT.`,
           "",
+          "OUTFIT SUBSTITUTION (same priority as PRODUCT SUBSTITUTION):",
+          "The reference video shows the template's original subject wearing PLACEHOLDER outfits in every shot. Those outfits MUST NOT appear in your output under any circumstances. For every subject-present shot, the subject must wear the EXACT outfit shown in that shot's assigned keyframe — even if the keyframe outfit's silhouette, fit, length, or style differs sharply from the placeholder outfit visible in the reference video at the same timestamp. The reference video's clothing is a placeholder; the keyframe's clothing is the truth. If the keyframe shows a slip dress and the reference video shows athletic wear at the same timestamp, render the slip dress, NOT the athletic wear. If the keyframe shows a mini skirt and the reference video shows leggings, render the mini skirt, NOT leggings. If you find yourself rendering any garment (top, bottom, dress, footwear, accessory) that appears in the reference video but NOT in the assigned keyframe, that is INCORRECT.",
+          "",
           "STRICT SHOT-STATE BINDING:",
           "Each keyframe is bound to its assigned shot's timestamp range. The model MUST NOT redistribute, blend, or repeat keyframes across shots — even if some shots are short or some settings are revisited. Short shots must still receive their assigned keyframe; longer / revisited shots must not steal short shots' material. Subject-bearing keyframes appear ONLY in their assigned (wearing) shots; product-only keyframes appear ONLY in their assigned (absent) shots.",
           "",
           ...shotLines,
           "",
-          "Identity match (for subject-present shots) and product substitution (for ALL shots) are tied for highest priority. Shot-state binding is second. These three rules outrank motion fidelity and scene reproduction. Do not insert the subject into product-only shots, do not blend outfits between subject-present shots, and do not let the template's placeholder product appear in the output.",
+          "Identity match, product substitution, AND outfit substitution (all three for subject-present shots) are tied for highest priority. Shot-state binding is second. These rules outrank motion fidelity and scene reproduction. Do not insert the subject into product-only shots, do not blend outfits between subject-present shots, do not let the template's placeholder product or placeholder clothing appear in the output, and do not substitute the reference video's outfits for the assigned keyframe outfits.",
         ].join("\n");
+
+        // Build a negative prompt from the user's outfit descriptions and a
+        // standard set of "do not render reference-video outfits" anti-patterns.
+        // Seedance/kie.ai accepts a single negative_prompt string; we list the
+        // generic placeholder-outfit shapes that bleed most often (athletic
+        // wear, branded text overlays) plus a directive to ignore the reference
+        // video's clothing.
+        const multishotNegativePrompt = [
+          "outfits from the reference video",
+          "placeholder outfits",
+          "template's original clothing",
+          "athletic wear, sports bra, gym leggings, workout clothing, activewear, yoga pants",
+          "any text on screen, captions, subtitles, title cards, signage, lettering",
+          "brand logos, brand marks, watermarks, store names, product labels overlaid on the scene",
+          "UNIQLO logo, branded boxes, branded banners",
+          "text floating in the air, text on doors, text on walls, text on the background",
+          "hallucinated text, fake text, gibberish text, nonsense letters, garbled lettering",
+          "duplicate of the original template subject",
+        ].join(", ");
 
         console.log(
           `[orchestrator][multishot] requesting ${requestDuration}s clip across ${multishotShotPlan.length} shots; prompt preview: ${multishotPrompt.slice(0, 250).replace(/\n/g, " ⏎ ")}`,
@@ -1224,9 +1336,11 @@ export async function runPipeline(
           productReferenceUrls: undefined,
           motionReferenceUrl,
           motionPrompt: multishotPrompt,
+          negativePrompt: multishotNegativePrompt,
           durationSeconds: requestDuration,
           aspectRatio: "9:16",
           resolution: "720p",
+          generateAudio: template.metadata.requires_lip_sync === true,
         });
         console.log(
           "[orchestrator][multishot] dropped identity + product refs (already encoded in keyframes) to prevent loose-image bleed",
@@ -1246,22 +1360,39 @@ export async function runPipeline(
 
         // Conform to true template duration (handles +0.04s overshoot from kie.ai)
         const conformedSinglePath = join(runDir, "kie-multishot-conformed.mp4");
+        const preserveAudioMs = template.metadata.requires_lip_sync === true;
         await conformClipDuration({
           inputPath: rawSinglePath,
           outputPath: conformedSinglePath,
           actualDurationSeconds: actualDur,
           targetDurationSeconds: fullDuration,
+          preserveAudio: preserveAudioMs,
         });
 
         // Mux template audio onto the single clip via concatClips (it short-circuits
-        // single-input to copyFileSync + handles audio mux)
+        // single-input to copyFileSync + handles audio mux). For lip-sync clips,
+        // preserveAudio carries Seedance's generated dialogue through instead.
         updateRun(run_id, {
           status: "concatenating",
-          progress_label: "Muxing template audio…",
+          progress_label: preserveAudioMs
+            ? "Finalizing lip-sync output…"
+            : "Muxing template audio…",
         });
         const finalPathMs = join(runDir, "output.mp4");
-        const templateVideoPathMs = resolve("public", template.video_path);
-        await concatClips([conformedSinglePath], finalPathMs, templateVideoPathMs);
+        const templateVideoPathMs = preserveAudioMs
+          ? undefined
+          : resolve("public", template.video_path);
+        if (preserveAudioMs) {
+          console.log(
+            "[orchestrator][multishot] requires_lip_sync=true — preserving Seedance audio, skipping template audio mux (multi-keyframe path)",
+          );
+        }
+        await concatClips(
+          [conformedSinglePath],
+          finalPathMs,
+          templateVideoPathMs,
+          preserveAudioMs,
+        );
 
         ffmpeg.ffprobe(finalPathMs, (err, data) => {
           if (err) return;
@@ -1282,8 +1413,16 @@ export async function runPipeline(
         progress_label: "Stitching final video…",
       });
       const finalPath = join(runDir, "output.mp4");
-      const templateVideoPath = resolve("public", template.video_path);
-      await concatClips(clipPaths, finalPath, templateVideoPath);
+      const preserveAudioPs = template.metadata.requires_lip_sync === true;
+      const templateVideoPath = preserveAudioPs
+        ? undefined
+        : resolve("public", template.video_path);
+      if (preserveAudioPs) {
+        console.log(
+          "[orchestrator] requires_lip_sync=true — preserving Seedance audio, skipping template audio mux (per_shot_conform path)",
+        );
+      }
+      await concatClips(clipPaths, finalPath, templateVideoPath, preserveAudioPs);
 
       // Verify the final output with ffprobe
       ffmpeg.ffprobe(finalPath, (err, data) => {
@@ -1348,7 +1487,14 @@ export async function runPipeline(
       progress_label: "Stitching final video…",
     });
     const finalPath = join(runDir, "output.mp4");
-    const templateVideoPath = resolve("public", template.video_path);
+    const templateVideoPath = template.metadata.requires_lip_sync
+      ? undefined
+      : resolve("public", template.video_path);
+    if (template.metadata.requires_lip_sync) {
+      console.log(
+        "[orchestrator][kling] requires_lip_sync=true — skipping template audio mux",
+      );
+    }
     await concatClips(clipPaths, finalPath, templateVideoPath);
 
     return updateRun(run_id, {

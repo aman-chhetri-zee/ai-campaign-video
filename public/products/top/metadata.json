@@ -1,0 +1,21 @@
+{
+  "primary_item_type": "Denim Bustier Top",
+  "items": [
+    {
+      "item_type": "Denim Bustier Top",
+      "attachment_strategy": "worn_on_torso",
+      "side_preference": "center",
+      "visual_description": "A structured, corset-style bustier top made from dark wash indigo denim. It features a sweetheart neckline, wide shoulder straps, and prominent contrast stitching in a tan or orange color that defines the seams and cups. The top has a scalloped, zigzag stitch detail along the neckline and hem."
+    }
+  ],
+  "overall_description": "This is a product shot of a dark indigo denim bustier top. The top is designed with a structured, corset-like fit, featuring a sweetheart neckline and wide straps. The look is defined by the classic denim contrast stitching in tan, which accentuates the seams and paneling of the garment.",
+  "key_features": [
+    "Dark wash indigo denim",
+    "Contrast tan stitching",
+    "Structured bustier/corset design",
+    "Sweetheart neckline",
+    "Wide shoulder straps",
+    "Cropped length",
+    "Scalloped zigzag stitch trim"
+  ]
+}
