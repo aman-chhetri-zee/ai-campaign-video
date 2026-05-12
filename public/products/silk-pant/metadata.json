@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "trousers",
+  "items": [
+    {
+      "item_type": "trousers",
+      "attachment_strategy": "worn_on_legs",
+      "side_preference": "none",
+      "visual_description": "A pair of high-waisted, wide-leg trousers in an off-white color. They feature a clean, flat front with a smooth waistband and a prominent pressed crease down the center of each leg, creating a tailored and elongated silhouette."
+    }
+  ],
+  "overall_description": "This is a pair of sophisticated, high-waisted trousers in a solid off-white color. The design features a wide-leg or flared silhouette that extends from the hips to the hem, offering a fluid and elegant look.",
+  "key_features": [
+    "High-waisted",
+    "Wide-leg silhouette",
+    "Flared leg opening",
+    "Solid off-white color",
+    "Pressed center crease"
+  ]
+}

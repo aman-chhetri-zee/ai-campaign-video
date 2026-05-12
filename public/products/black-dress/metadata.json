@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "slip_dress",
+  "items": [
+    {
+      "item_type": "slip_dress",
+      "attachment_strategy": "worn_on_torso",
+      "side_preference": "none",
+      "visual_description": "A midi-length black slip dress made of a shiny, satin-like material. It features a straight neckline with a delicate white or silver beaded trim. The dress has thin, double spaghetti straps. A high slit is visible on one side of the dress."
+    }
+  ],
+  "overall_description": "A minimalist and elegant black satin slip dress, featuring delicate detailing like thin double spaghetti straps and a subtle trim along the neckline, complete with a side slit for a modern touch.",
+  "key_features": [
+    "Black satin fabric",
+    "Midi length",
+    "Thin double spaghetti straps",
+    "Straight neckline with delicate trim",
+    "Side slit"
+  ]
+}

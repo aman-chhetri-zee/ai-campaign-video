@@ -162,6 +162,9 @@ export async function generateViaKieSeedance(input: {
     generate_audio: generateAudio,
     nsfw_checker: false,
   };
+  if (input.negativePrompt && input.negativePrompt.trim()) {
+    reqInput.negative_prompt = input.negativePrompt.trim();
+  }
   if (input.motionReferenceUrl) {
     reqInput.reference_image_urls = allRefImages;
     reqInput.reference_video_urls = [input.motionReferenceUrl];
@@ -200,6 +203,10 @@ export async function generateMultiShotViaKieSeedance(input: {
   motionReferenceUrl: string;
   /** Comprehensive prompt with per-shot timestamps and outfit assignments. */
   motionPrompt: string;
+  /** Negative prompt — concepts/visuals to AVOID. Used to push Seedance away
+   *  from the reference video's placeholder outfits when they differ sharply
+   *  from the user's keyframe outfits. */
+  negativePrompt?: string;
   durationSeconds: 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
   aspectRatio?: "9:16" | "16:9" | "1:1";
   resolution?: "480p" | "720p" | "1080p";
@@ -235,6 +242,9 @@ export async function generateMultiShotViaKieSeedance(input: {
     reference_image_urls: allRefImages,
     reference_video_urls: [input.motionReferenceUrl],
   };
+  if (input.negativePrompt && input.negativePrompt.trim()) {
+    reqInput.negative_prompt = input.negativePrompt.trim();
+  }
 
   console.log(
     `[kie-seedance][multishot] submitting model=${model} resolution=${resolution} aspect=${aspectRatio} duration=${input.durationSeconds}s ` +
