@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "cuff bracelet",
+  "items": [
+    {
+      "item_type": "cuff bracelet",
+      "attachment_strategy": "worn_on_wrist",
+      "side_preference": "none",
+      "visual_description": "A chunky, silver-toned cuff bracelet with an open design. It has a highly polished, reflective surface and features an organic, fluid, and slightly squared-off shape. The ends are rounded and open."
+    }
+  ],
+  "overall_description": "This is a product image of a modern, minimalist cuff bracelet. The bracelet is crafted from a silver-toned metal with a high-shine finish, giving it a sleek and contemporary look. Its design is characterized by an organic, undulating form that is both curved and subtly angular, creating a unique and sculptural piece of jewelry.",
+  "key_features": [
+    "Chunky, substantial design",
+    "Silver-toned metal",
+    "High-polish, reflective finish",
+    "Organic, fluid, and slightly squared-off shape",
+    "Open cuff style"
+  ]
+}

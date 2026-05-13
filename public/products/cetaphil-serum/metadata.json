@@ -1,0 +1,20 @@
+{
+  "primary_item_type": "serum_bottle",
+  "items": [
+    {
+      "item_type": "serum_bottle",
+      "attachment_strategy": "placed_on_surface",
+      "side_preference": "none",
+      "visual_description": "A cylindrical bottle of Cetaphil serum, made of semi-transparent frosted glass revealing a light pink liquid. The bottle has a white label with the 'Cetaphil' logo and product information in blue, green, pink, and black text. It is topped with a dropper applicator that has a shiny, metallic pink collar and a white rubber squeeze bulb."
+    }
+  ],
+  "overall_description": "A product image of Cetaphil's Bright Healthy Radiance Perfecting Serum. The 30ml bottle has a clean, clinical aesthetic with a frosted glass body, a white and pink color scheme, and a distinctive metallic pink dropper cap.",
+  "key_features": [
+    "Cetaphil branding",
+    "Bright Healthy Radiance product line",
+    "Dropper applicator",
+    "Metallic pink cap collar",
+    "Frosted glass bottle",
+    "30ml volume"
+  ]
+}

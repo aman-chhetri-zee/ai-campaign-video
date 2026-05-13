@@ -1,0 +1,39 @@
+{
+  "scene_description": "A person is standing in a brightly lit, modern room, speaking directly to the camera while showing off a piece of jewelry on their wrist.",
+  "subject": {
+    "rough_pose": "Standing, facing camera, presenting an item on the wrist.",
+    "framing": "The video uses a mix of extreme close-up on the wrist and a chest-up medium shot.",
+    "lighting": "Bright, soft, and even daylight coming from an off-camera source, likely a large window."
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 12,
+      "action": "The shot opens from a low-angle, close-up perspective. The subject holds their left forearm up, angled towards the camera. Their right hand comes into frame, securing a large cuff bracelet onto the left wrist. They use their right fingers to adjust and center the piece. The left arm then extends further towards the camera, filling the frame with an extreme close-up of the wrist and bracelet. The subject slowly rotates their wrist back and forth, tilting it to catch the light and show the texture and shape of the item. Their right hand occasionally comes back in to touch or point at the bracelet. The subject's head is tilted down, looking at their wrist, with their mouth open as if speaking. The camera has a slight handheld feel, with minor adjustments in framing to follow the movement of the wrist. The shot ends on a tight view of the bracelet before a cut."
+    },
+    {
+      "t_start": 12,
+      "t_end": 15,
+      "action": "Following a hard cut, the camera is now at a wider, chest-up medium framing. The subject has lowered their arms from the previous pose and is standing squarely facing the camera. Their arms are relaxed and slightly away from their body, with the left wrist, still adorned with the bracelet, subtly presented forward. Their posture is straight and confident. They look directly into the camera lens, speaking with a neutral but engaging facial expression. Their head remains still as they deliver the final lines of the video. The camera is completely static for this final shot, holding the medium frame until the video ends. The background shows a well-lit room with clean lines and windows."
+    }
+  ],
+  "composition_notes": "The video employs a direct-to-camera, vlog-style composition. It starts with an extreme close-up to focus viewer attention entirely on the product being demonstrated, then pulls back to a medium shot to establish the person in the context of the space and create a personal connection.",
+  "style": {
+    "lens": "Natural 50mm",
+    "color_treatment": "Natural and bright with warm undertones",
+    "lighting_effects": "Soft, diffuse daylight",
+    "special_effects": []
+  },
+  "pose_archetypes": [
+    "Confident",
+    "Stylish",
+    "Informative",
+    "Casual"
+  ],
+  "energy": "Casual and conversational product review",
+  "shot_backgrounds": [
+    "Bright, modern living room with large windows and neutral-colored curtains."
+  ],
+  "requires_lip_sync": true,
+  "dialogue": "Okay, I didn't expect to like this this much. It's super simple, but it looks really expensive. And it goes with literally everything. I've been wearing it every day."
+}

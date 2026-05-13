@@ -1163,13 +1163,56 @@ export async function runPipeline(
             status: "generating_video",
             progress_label: `Rendering single-outfit video (1 call, ${requestDuration}s)…`,
           });
+          // Build the single-outfit prompt: motion_script + PRODUCT
+          // SUBSTITUTION clause + (optionally) dialogue clause. The shot plan's
+          // motion_prompt is just the motion_script text — it does NOT include
+          // the product/outfit substitution language that the multi-keyframe
+          // path injects. Without those clauses, Seedance copies the reference
+          // video's placeholder product (e.g. template-9's original bracelet)
+          // instead of using the user's product from the keyframe.
+          const singleProductDescription = multishotShotPlan[0].outfit_description.slice(0, 600);
+          const productSubstitutionClause = [
+            "",
+            "PRODUCT SUBSTITUTION (highest priority alongside identity):",
+            `The product(s) visible in EVERY shot of the output must be the user's product(s) shown in the keyframe reference image (Image 1): ${singleProductDescription}. The reference video MAY show a different placeholder product (the template's original item) — that placeholder is for choreography reference ONLY and must NOT appear in the output. Wherever the reference video shows its placeholder product (whether held by the subject, on a wrist, or as a hero shot), substitute the user's product in its place. Match every visible detail of the user's product (color, material, finish, branding, shape, proportions) exactly to the keyframe. If you find yourself rendering the template's placeholder product instead of the user's product, that is INCORRECT.`,
+          ].join("\n");
+
+          let singleMotionPrompt = multishotShotPlan[0].motion_prompt + productSubstitutionClause;
+
+          // Inject dialogue clause for lip-sync templates.
+          if (template.metadata.requires_lip_sync && template.metadata.dialogue) {
+            singleMotionPrompt = injectDialogueIntoPrompt(
+              singleMotionPrompt,
+              template.metadata.dialogue,
+            );
+            console.log(
+              `[orchestrator][multishot/single-outfit] requires_lip_sync=true — injected dialogue (${template.metadata.dialogue.length} chars)`,
+            );
+          }
+          // Negative prompt — discourage anatomy hallucination (3-hands bug
+          // observed on hand-heavy choreography), placeholder-product bleed
+          // from the reference video, and (for lip-sync) dialogue improvisation.
+          const singleNegativeParts = [
+            "extra hands, three hands, more than two hands, duplicated fingers, malformed hands, anatomically incorrect hands, distorted limbs",
+            "any text on screen, captions, subtitles, signage, lettering, watermarks, brand logos overlaid on the scene",
+            "placeholder product from the reference video, template's original product, different bracelet, different watch, different jewelry, swapped product",
+            "any product that doesn't match the keyframe's product",
+          ];
+          if (template.metadata.requires_lip_sync) {
+            singleNegativeParts.push(
+              "improvised dialogue, dialogue that does not match the SPOKEN DIALOGUE block, narration that ignores the quoted text, made-up speech, off-script speaking",
+            );
+          }
+          const singleNegativePrompt = singleNegativeParts.join(", ");
+
           const simpleResult = await generateViaKieSeedance({
             keyframeUrl: multishotKeyframeBlobUrls[0],
             // Keep reference_video for template motion choreography. Drop
             // identity + product refs so Seedance only has the keyframe as
             // visual material — same outfit reused across all perceived shots.
             motionReferenceUrl,
-            motionPrompt: multishotShotPlan[0].motion_prompt,
+            motionPrompt: singleMotionPrompt,
+            negativePrompt: singleNegativePrompt,
             durationSeconds: requestDuration,
             aspectRatio: "9:16",
             resolution: "720p",
@@ -1312,8 +1355,22 @@ export async function runPipeline(
           "duplicate of the original template subject",
         ].join(", ");
 
+        // Inject dialogue clause for lip-sync templates on the multi-keyframe
+        // multishot path too (in case a future template has multiple outfits
+        // AND requires lip-sync).
+        let finalMultishotPrompt = multishotPrompt;
+        if (template.metadata.requires_lip_sync && template.metadata.dialogue) {
+          finalMultishotPrompt = injectDialogueIntoPrompt(
+            finalMultishotPrompt,
+            template.metadata.dialogue,
+          );
+          console.log(
+            `[orchestrator][multishot] requires_lip_sync=true — injected dialogue (${template.metadata.dialogue.length} chars)`,
+          );
+        }
+
         console.log(
-          `[orchestrator][multishot] requesting ${requestDuration}s clip across ${multishotShotPlan.length} shots; prompt preview: ${multishotPrompt.slice(0, 250).replace(/\n/g, " ⏎ ")}`,
+          `[orchestrator][multishot] requesting ${requestDuration}s clip across ${multishotShotPlan.length} shots; prompt preview: ${finalMultishotPrompt.slice(0, 250).replace(/\n/g, " ⏎ ")}`,
         );
 
         updateRun(run_id, {
@@ -1335,7 +1392,7 @@ export async function runPipeline(
           identityReferenceUrls: undefined,
           productReferenceUrls: undefined,
           motionReferenceUrl,
-          motionPrompt: multishotPrompt,
+          motionPrompt: finalMultishotPrompt,
           negativePrompt: multishotNegativePrompt,
           durationSeconds: requestDuration,
           aspectRatio: "9:16",
