@@ -1,0 +1,19 @@
+{
+  "primary_item_type": "skirt",
+  "items": [
+    {
+      "item_type": "skirt",
+      "attachment_strategy": "worn_on_legs",
+      "side_preference": "none",
+      "visual_description": "A short, pleated skirt in an off-white or cream color. It features a wide, white elasticated waistband with a prominent horizontal stripe pattern of green and red, reminiscent of the Gucci web stripe. The skirt is made of a fabric with a slight texture and has numerous sharp, vertical pleats creating an A-line silhouette."
+    }
+  ],
+  "overall_description": "This is a sporty and stylish off-white pleated mini skirt, likely inspired by tennis wear. The design is defined by its clean pleats and a distinctive elastic waistband featuring a green and red stripe detail, providing both comfort and a signature branding element.",
+  "key_features": [
+    "Pleated design",
+    "Off-white color",
+    "Mini length",
+    "Elasticated waistband",
+    "Green and red stripe detail"
+  ]
+}

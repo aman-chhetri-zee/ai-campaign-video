@@ -45,10 +45,40 @@ function inlinePart(img: ImageInput) {
 }
 
 function sanitiseProductDescription(d: string): string {
+  // Lifestyle / archetype / vibe words leak into face & body rendering when
+  // Nano Banana Pro averages descriptions across the prompt. "Sporty / tennis-
+  // wear" pulled a creator's face toward an athletic-model archetype on a real
+  // run. Strip them so only objective visual attributes (color, material,
+  // length, silhouette, branding) reach the prompt. Length descriptors (mini,
+  // maxi, midi, cropped, long-sleeved, high-waisted, wide-leg) are NEVER
+  // stripped — those are objective and must survive.
+  const VIBE_WORDS = [
+    "sporty", "athletic", "preppy", "chic", "elegant", "sophisticated",
+    "minimalist", "edgy", "feminine", "masculine", "urban", "casual",
+    "stylish", "fashionable", "trendy", "cute", "glamorous", "seductive",
+    "professional", "office-ready", "business-casual", "modern",
+    "luxurious", "polished", "youthful", "playful", "refined",
+  ];
+  const vibeRe = new RegExp(
+    `\\b(?:${VIBE_WORDS.join("|")})\\b(?:\\s+and\\s+(?:${VIBE_WORDS.join("|")})\\b)?`,
+    "gi",
+  );
   return d
     .replace(/\b(?:on a |displayed on a |styled on a |worn by a )?mannequin\b/gi, "")
     .replace(/\bthe (?:look|outfit|ensemble) (?:consists of|features|includes)\b/gi, "an outfit comprising")
+    .replace(/\b(?:likely\s+)?inspired by [a-z\s-]+?(?:wear|style|aesthetic|vibe|look)\b/gi, "")
+    .replace(/\b(?:creating|offering|providing|giving) (?:a|an) (?:look|feel|sense|aesthetic|appearance|vibe) of [^.,;]+/gi, "")
+    .replace(vibeRe, "")
+    // Cleanup grammatical debris left behind by removed vibe words
+    .replace(/\bfor an? \s*touch\b/gi, "")
+    .replace(/\b(?:creating|offering|providing|giving) (?:a|an)? ?and? ?(?:look|feel|vibe|aesthetic|appearance)\b/gi, "")
+    .replace(/\band\s+(?:look|feel|vibe|aesthetic|appearance)\b/gi, "")
+    .replace(/\s+(?:and|,)\s*\./g, ".")
     .replace(/\s{2,}/g, " ")
+    .replace(/\bis a (?=[aeiou])/gi, "is an ")
+    .replace(/\s+([,.])/g, "$1")
+    .replace(/,\s*\./g, ".")
+    .replace(/,\s*,/g, ",")
     .trim();
 }
 
@@ -84,10 +114,12 @@ function buildPrompt(
     "",
     "IDENTITY (HIGHEST PRIORITY):",
     "The subject is the EXACT SAME PERSON shown in Image 1 (and Image 2 if provided). Render them as if they walked out of that photo into the new scene. Do NOT idealize, slim down, age down, or restyle them. Preserve every physical feature identically: face shape, jawline, cheekbone structure, eye shape and color, nose shape and any nose stud, lip shape, skin tone and texture, hair length / color / texture / parting, body type / weight / build / proportions / height impression. If the reference shows a person with average build, render that same average build — do not slim them. If the reference shows long hair, render long hair of the same length.",
+    "Do NOT let the outfit's aesthetic, archetype, or lifestyle vibe (e.g., athletic, formal, casual, edgy, romantic) influence the subject's face, body proportions, or build. The subject's appearance is determined exclusively by the identity reference images, regardless of what the outfit's style suggests. Treat the outfit as clothing being placed on the identity-reference person — never as a hint about who the person should be.",
     args.faceDescription ? `Face description: ${args.faceDescription.trim()}` : "",
     "",
     "OUTFIT (MUST APPEAR IN FULL):",
     `The subject is wearing/holding the items shown in the outfit reference images: ${productList}. Every item must be rendered with high fidelity to its visual reference — match colors, materials, silhouette, and style. NONE of these items may be omitted, replaced with a default, or hallucinated. If footwear is among the items, ensure shoes are clearly visible at the feet. If a bag is among the items, place it in a hand or on a shoulder.`,
+    "GARMENT LENGTH AND PROPORTIONS: Each garment's length and silhouette must match the product reference image LITERALLY. A mini skirt stays mini (well above the knee); a midi skirt stays midi (mid-calf); a maxi skirt stays maxi (to the ankle). Short-sleeve stays short-sleeve; long-sleeve stays long-sleeve. Cropped tops stay cropped. High-waisted stays high-waisted. Do NOT lengthen, shorten, loosen, or otherwise reinterpret any garment to fit the scene's framing, the camera angle, or the outfit's overall vibe. If a length descriptor (mini / midi / maxi / cropped / full-length / knee-length) is present in the outfit description above, follow it exactly.",
     "",
     "FALLBACK FOR UNCOVERED CLOTHING SLOTS:",
     "For any clothing slot NOT covered by the explicit outfit reference images above (e.g., bottoms when only a top is selected, or footwear when no shoes are listed), DO NOT invent generic neutral defaults like a plain white tee or plain jeans. Instead, infer the missing pieces directly from the scene reference image — match the colors, silhouettes, fabric textures, and styling of whatever clothing the person in the scene reference is wearing — so the final outfit stays cohesive with the template's wardrobe. The selected products take precedence; the scene-inferred pieces only fill the slots the user did not pick.",

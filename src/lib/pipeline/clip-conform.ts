@@ -28,10 +28,16 @@ export async function conformClipDuration(args: {
   actualDurationSeconds: number;
   targetDurationSeconds: number;
   maxSpeedupFactor?: number;     // default 2.5 — beyond this, motion looks too unnatural
+  /** When true, carry the input's audio stream through the conform step,
+   *  speeding it up by the same factor as the video (atempo) so audio and
+   *  video stay in sync. Required for lip-sync clips where Seedance generates
+   *  the dialogue audio and stripping it would silence the output. */
+  preserveAudio?: boolean;
 }): Promise<ConformResult> {
   const maxSpeedup = args.maxSpeedupFactor ?? 2.5;
   const actualDur = args.actualDurationSeconds;
   const targetDur = args.targetDurationSeconds;
+  const preserveAudio = args.preserveAudio ?? false;
 
   // No conform needed: target is already at or beyond actual
   if (targetDur >= actualDur - 0.05) {
@@ -49,14 +55,22 @@ export async function conformClipDuration(args: {
   const trimmed = expectedAfterSpeedup > targetDur + 0.05;
 
   await new Promise<void>((resolve, reject) => {
-    let cmd = ffmpeg(args.inputPath)
-      .videoFilters([`setpts=${setptsFactor.toFixed(6)}*PTS`])
+    let cmd = ffmpeg(args.inputPath);
+    if (preserveAudio) {
+      cmd = cmd.complexFilter([
+        `[0:v]setpts=${setptsFactor.toFixed(6)}*PTS[v]`,
+        `[0:a]atempo=${speedup.toFixed(6)}[a]`,
+      ]).outputOptions(["-map", "[v]", "-map", "[a]"]);
+    } else {
+      cmd = cmd.videoFilters([`setpts=${setptsFactor.toFixed(6)}*PTS`]);
+    }
+    cmd = cmd
       .videoCodec("libx264")
       .outputOptions([
         "-preset veryfast",
         "-crf 23",
         "-pix_fmt yuv420p",
-        "-an",
+        ...(preserveAudio ? ["-c:a", "aac", "-b:a", "192k"] : ["-an"]),
         "-fflags +genpts",
         "-movflags +faststart",
       ]);

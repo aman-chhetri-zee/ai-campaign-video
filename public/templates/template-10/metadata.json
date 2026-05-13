@@ -1,0 +1,58 @@
+{
+  "scene_description": "Authentic amateur-style UGC in a bright bathroom: white tiles, soft natural daylight from a window, real-life details (folded towel, small plant, simple ceramics). Handheld feel with subtle micro-shake, natural smartphone-lens look, no cinematic grading. A young woman in her mid-20s films a quick first-person skincare review for friends. The phone, camera, and any mirror reflection of a phone or hands holding a phone must NEVER be visible; no mirror shows the filming setup.",
+  "subject": {
+    "rough_pose": "Standing in a bathroom near a window, facing the camera, alternating between holding a skincare product up to her face and applying it to her skin. Direct, conversational delivery.",
+    "framing": "UGC-style mix: extreme close-up on face (shot 1), close-up of product next to cheek (shot 2), tight close-up of hands applying to skin (shot 3), medium shot of face and shoulders (shot 4), final close-up of both hands holding the product near her face (shot 5).",
+    "lighting": "Soft, natural daylight from a single off-camera window. No artificial lighting, no ring light, no studio fill. Highlights on skin read gentle and dewy, not glossy or commercial."
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 2,
+      "action": "VISUAL HOOK. Extreme close-up of the subject's face, slightly off-center, lit by soft window light. She leans in fast with wide surprised eyes and a half-smile, like she just noticed something amazing on her skin. Tiny handheld wobble, natural smartphone-lens feel. Faint water drip and bathroom room tone in the background. She speaks softly: 'okay wait—'. No on-screen text. No phone, no camera, no mirror reflecting the filming setup anywhere in frame."
+    },
+    {
+      "t_start": 2,
+      "t_end": 4,
+      "action": "Quick hard cut. Her hand brings the product up next to her right cheek, turning it once so the label catches the daylight. She keeps eye contact with the camera and speaks in casual upbeat American English. Background: bathroom counter and window. Hand movement is unrehearsed, natural. The phone or any filming device must NEVER appear in frame or in any reflection."
+    },
+    {
+      "t_start": 4,
+      "t_end": 7,
+      "action": "Tight close-up of her hands applying the product to her skin (cheek or under-eye area). Real texture and motion, product visibly going on — droplet, cream, or essence depending on the product format. Soft bathroom room tone. Camera holds steady on the hands-on-skin action. Fingers gently pat the product in with small circular motions, capturing a dewy sheen as natural light catches the application."
+    },
+    {
+      "t_start": 7,
+      "t_end": 10,
+      "action": "Medium shot of her face and shoulders, soft daylight from her left. She touches the area where she just applied the product and turns her face gently side to side in the light to show the dewy glow. A small natural giggle. Posture relaxed. She looks directly into the camera while speaking — direct, friendly, unscripted-feeling. No phone, no filming device, no mirror reflection of a device anywhere in the frame."
+    },
+    {
+      "t_start": 10,
+      "t_end": 12,
+      "action": "FINAL close-up. Both hands hold the product up near her face, label facing the camera. She gives a small playful shrug and a genuine, satisfied smile. The clip ends mid-motion like a real social post — slightly imperfect timing, no formal sign-off. Continues subtle handheld micro-shake to feel authentic, not staged."
+    }
+  ],
+  "composition_notes": "Authentic UGC / first-person social-media review aesthetic. Five-shot structure with quick cuts: extreme close-up hook → product reveal next to face → close-up application on skin → medium reaction shot → final close-up with product. Handheld smartphone feel throughout — subtle micro-shake, no tripod, no cinematic grading. CRITICAL CONSTRAINT: the camera/phone, any hand-held filming device, and any mirror reflection of the filming setup must NEVER appear in any shot, ever.",
+  "style": {
+    "lens": "Smartphone-like wide-to-natural — subtle barrel distortion in close-ups, natural ~28-35mm equivalent feel in medium shots.",
+    "color_treatment": "Natural and untreated. Bright daylight, slightly warm skin tones. No cinematic grading. Feels like raw phone footage, not a commercial.",
+    "lighting_effects": "Soft, diffuse daylight from a single window. No artificial fill, no ring light, no studio lighting.",
+    "special_effects": []
+  },
+  "pose_archetypes": [
+    "surprised",
+    "casual",
+    "excited",
+    "playful",
+    "authentic"
+  ],
+  "energy": "Casual, authentic, mid-20s UGC skincare review",
+  "shot_backgrounds": [
+    "Bright bathroom: white tiles, folded towel, small plant, simple ceramics. Window with soft natural daylight."
+  ],
+  "outfit_segments": [
+    { "t_start": 0, "t_end": 12, "shot_indices": [0, 1, 2, 3, 4] }
+  ],
+  "requires_lip_sync": true,
+  "dialogue": "Okay wait... I literally cannot believe how good this is. Look how it just melts in — my skin already feels insane. Okay, I'm obsessed. I'm not going back."
+}

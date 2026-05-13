@@ -1,0 +1,20 @@
+{
+  "primary_item_type": "watch",
+  "items": [
+    {
+      "item_type": "watch",
+      "attachment_strategy": "worn_on_wrist",
+      "side_preference": "none",
+      "visual_description": "An analog watch featuring a round, silver-tone metal case and a black silicone strap. The dial is a vibrant, solid red color. It has black, pointed, three-dimensional hour markers instead of numerals. The hands (hour, minute, and second) are all silver-toned. The brand name 'DIESEL' is printed in white below the 12 o'clock position, and '5 ATM' is printed above the 6 o'clock position, indicating water resistance."
+    }
+  ],
+  "overall_description": "A sporty and modern Diesel analog watch that makes a bold statement with its high-contrast color scheme. The bright red dial stands out against the sleek silver-tone case and the practical black silicone band, creating a visually striking timepiece.",
+  "key_features": [
+    "Vibrant red dial",
+    "Silver-tone case",
+    "Black silicone strap",
+    "Pointed three-dimensional hour markers",
+    "Analog display",
+    "5 ATM water resistance"
+  ]
+}
