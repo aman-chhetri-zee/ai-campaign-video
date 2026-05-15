@@ -1,0 +1,45 @@
+{
+  "scene_description": "A person sitting alone at a table in a stylish restaurant is suddenly presented with a variety of food and drink options by multiple hands appearing from off-screen. After a moment of consideration, they make their choice and get ready to eat.",
+  "subject": {
+    "rough_pose": "Sitting at a table, leaning forward.",
+    "framing": "Medium shot, waist-up.",
+    "lighting": "Soft, warm ambient light from overhead and wall sconces."
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 1.2,
+      "action": "The scene opens on a static medium shot, framing the subject from the waist up. They are seated at a white circular table in a restaurant, leaning forward slightly. Their full attention is directed downwards towards a smartphone held in both hands. Their posture is slightly slouched in concentration, with elbows resting near the table's edge. The facial expression is neutral and focused, typical of someone absorbed in their device. The lighting is soft and warm, emanating from unseen sources and visible wall sconces in the background, creating a cozy atmosphere. The shot remains completely still, establishing a quiet, solitary moment."
+    },
+    {
+      "t_start": 1.2,
+      "t_end": 5.5,
+      "action": "The static frame is suddenly populated by multiple hands entering from the left, right, and bottom edges, each presenting a dish or a drink. This visual effect breaks the initial solitude. The subject's head lifts from the phone, their eyes widening slightly. They place the phone on the table. Their gaze shifts from left to right, scanning the array of choices. The initial neutral expression morphs into one of contemplation. They slowly lift their right hand, bringing their index finger to their lips in a pensive gesture. A slight head tilt accompanies this moment of decision, and a thoughtful, playful smile begins to form."
+    },
+    {
+      "t_start": 5.5,
+      "t_end": 8.2,
+      "action": "Transitioning from thought to action, the subject makes their choice with clear, decisive movements. Their right arm extends smoothly to the right, fingers closing around a glass containing a red beverage. Simultaneously, their left arm reaches forward to accept a white bowl of food presented from the lower left. The other hands holding food and drinks retract and vanish. The subject brings the chosen drink and dish in towards their body, placing them neatly on the table. Their body language is confident, and their expression shifts to a look of clear satisfaction and contentment, smiling down at their meal."
+    }
+  ],
+  "composition_notes": "The composition is centered and symmetrical. The subject remains in the middle of the frame, acting as the focal point. The table in the foreground grounds the shot, while the sudden appearance of hands with food from all sides creates a dynamic, layered effect that draws the viewer's eye towards the subject's reaction and choice.",
+  "style": {
+    "lens": "Natural 50mm",
+    "color_treatment": "Warm and inviting with soft tones, featuring creamy whites and beiges, accented by vibrant colors from the food and drinks.",
+    "lighting_effects": "Soft ambient restaurant lighting, with warm decorative wall sconces creating a pleasant, upscale atmosphere.",
+    "special_effects": [
+      "Composite shot with layered elements"
+    ]
+  },
+  "pose_archetypes": [
+    "Focused",
+    "Contemplative",
+    "Decisive",
+    "Satisfied",
+    "Stylish"
+  ],
+  "energy": "Playful and stylish choice narrative",
+  "shot_backgrounds": [
+    "Modern restaurant interior with warm wall sconces and a logo on a textured wall."
+  ]
+}

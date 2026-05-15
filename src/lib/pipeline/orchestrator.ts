@@ -903,10 +903,14 @@ export async function runPipeline(
           products: productImages.map((p) => ({ bytes: p.bytes, mimeType: p.mimeType })),
         });
 
+        // Product checks only matter when the user actually provided products.
+        // For empty-products runs (template-only "face into scene" mode), trust
+        // the keyframe and only gate the retry on identity.
+        const productChecksApply = productImages.length > 0;
         if (
           !judgement.identity_preserved ||
-          !judgement.all_products_present ||
-          !judgement.products_correctly_placed
+          (productChecksApply &&
+            (!judgement.all_products_present || !judgement.products_correctly_placed))
         ) {
           console.warn(
             `[orchestrator][kie-seedance] look ${i} judge flagged issues, retrying once:`,
@@ -1163,21 +1167,54 @@ export async function runPipeline(
             status: "generating_video",
             progress_label: `Rendering single-outfit video (1 call, ${requestDuration}s)…`,
           });
-          // Build the single-outfit prompt: motion_script + PRODUCT
-          // SUBSTITUTION clause + (optionally) dialogue clause. The shot plan's
-          // motion_prompt is just the motion_script text — it does NOT include
-          // the product/outfit substitution language that the multi-keyframe
-          // path injects. Without those clauses, Seedance copies the reference
-          // video's placeholder product (e.g. template-9's original bracelet)
-          // instead of using the user's product from the keyframe.
+          // Build the single-outfit prompt. Three flags shape what gets added:
+          //   - hasUserProducts: when the user's look has product_ids, we inject
+          //     a PRODUCT SUBSTITUTION clause + anti-template-product negatives.
+          //     When empty, we let the template's original product pass through.
+          //   - preserveTemplateText: when true (set per-template), strip the
+          //     anti-text negative clauses and add a positive PRESERVE-TEXT clause
+          //     so Seedance keeps the template's overlays/logos/title cards.
+          //   - requires_lip_sync: existing dialogue injection.
+          const hasUserProducts = run.looks[0].product_ids.length > 0;
+          const preserveTemplateText = template.metadata.preserve_template_text === true;
           const singleProductDescription = multishotShotPlan[0].outfit_description.slice(0, 600);
-          const productSubstitutionClause = [
-            "",
-            "PRODUCT SUBSTITUTION (highest priority alongside identity):",
-            `The product(s) visible in EVERY shot of the output must be the user's product(s) shown in the keyframe reference image (Image 1): ${singleProductDescription}. The reference video MAY show a different placeholder product (the template's original item) — that placeholder is for choreography reference ONLY and must NOT appear in the output. Wherever the reference video shows its placeholder product (whether held by the subject, on a wrist, or as a hero shot), substitute the user's product in its place. Match every visible detail of the user's product (color, material, finish, branding, shape, proportions) exactly to the keyframe. If you find yourself rendering the template's placeholder product instead of the user's product, that is INCORRECT.`,
-          ].join("\n");
 
-          let singleMotionPrompt = multishotShotPlan[0].motion_prompt + productSubstitutionClause;
+          let singleMotionPrompt = multishotShotPlan[0].motion_prompt;
+
+          if (hasUserProducts) {
+            const productSubstitutionClause = [
+              "",
+              "PRODUCT SUBSTITUTION (highest priority alongside identity):",
+              `The product(s) visible in EVERY shot of the output must be the user's product(s) shown in the keyframe reference image (Image 1): ${singleProductDescription}. The reference video MAY show a different placeholder product (the template's original item) — that placeholder is for choreography reference ONLY and must NOT appear in the output. Wherever the reference video shows its placeholder product (whether held by the subject, on a wrist, or as a hero shot), substitute the user's product in its place. Match every visible detail of the user's product (color, material, finish, branding, shape, proportions) exactly to the keyframe. If you find yourself rendering the template's placeholder product instead of the user's product, that is INCORRECT.`,
+            ].join("\n");
+            singleMotionPrompt += productSubstitutionClause;
+          } else {
+            // No user product → let the template's original product pass through,
+            // but the SUBJECT'S FACE must still be replaced with the keyframe's
+            // person at every timestamp.
+            const subjectFeatureClause = faceDescription
+              ? ` That person's specific features: ${faceDescription}. Render these features (face shape, eye shape and color, nose, lips, hair color and texture, skin tone, build) IDENTICALLY at every timestamp.`
+              : "";
+            singleMotionPrompt += [
+              "",
+              "PRODUCT PASS-THROUGH (no user product provided):",
+              "The user has not provided a product image. Render the same product(s), props, hands, and items that appear in the reference video at each timestamp — do not substitute or replace anything visible in the reference video's hands, on surfaces, or in the scene.",
+              "",
+              "IDENTITY OVERRIDE (ABSOLUTE HIGHEST PRIORITY — outranks reference-video fidelity):",
+              `The person visible in the reference video is a PLACEHOLDER subject. The actual subject of THIS output is the EXACT person shown in the keyframe reference image (Image 1) and the supporting identity reference images (Images 2 and 3 if provided).${subjectFeatureClause} At EVERY timestamp of the output, the subject's face and body MUST match the keyframe person, NEVER the reference video's person. Even though the reference video shows a different person at every frame, render the keyframe's person in their place at every shot — same poses, same actions, same wardrobe, same products, same scene, BUT with the keyframe's face and identity replacing the reference video's face and identity completely. If you find yourself rendering the reference video's original person's face anywhere in the output, that is INCORRECT — replace it with the keyframe's person's face. Treat this as a face/identity swap: keep everything from the reference video, but swap the person to match the keyframe.`,
+            ].join("\n");
+          }
+
+          if (preserveTemplateText) {
+            singleMotionPrompt += [
+              "",
+              "PRESERVE ON-SCREEN TEXT AND BRANDING:",
+              "The reference video contains burned-in text overlays, captions, brand logos, title cards, and/or signage that ARE INTENTIONAL and MUST appear in the output at the exact same timestamps and screen positions as in the reference video. Reproduce all on-screen text, lettering, and brand marks faithfully (matching font, color, animation, and placement). Do NOT remove, blur, replace, or alter any text or brand element visible in the reference video. The text is part of the desired output, not noise to be cleaned up.",
+            ].join("\n");
+            console.log(
+              `[orchestrator][multishot/single-outfit] preserve_template_text=true — text/branding preservation clause added`,
+            );
+          }
 
           // Inject dialogue clause for lip-sync templates.
           if (template.metadata.requires_lip_sync && template.metadata.dialogue) {
@@ -1189,15 +1226,30 @@ export async function runPipeline(
               `[orchestrator][multishot/single-outfit] requires_lip_sync=true — injected dialogue (${template.metadata.dialogue.length} chars)`,
             );
           }
-          // Negative prompt — discourage anatomy hallucination (3-hands bug
-          // observed on hand-heavy choreography), placeholder-product bleed
-          // from the reference video, and (for lip-sync) dialogue improvisation.
-          const singleNegativeParts = [
+          // Negative prompt — anatomy + (conditional) anti-text + (conditional)
+          // anti-product-bleed + (conditional) anti-improvisation.
+          const singleNegativeParts: string[] = [
             "extra hands, three hands, more than two hands, duplicated fingers, malformed hands, anatomically incorrect hands, distorted limbs",
-            "any text on screen, captions, subtitles, signage, lettering, watermarks, brand logos overlaid on the scene",
-            "placeholder product from the reference video, template's original product, different bracelet, different watch, different jewelry, swapped product",
-            "any product that doesn't match the keyframe's product",
           ];
+          if (!preserveTemplateText) {
+            singleNegativeParts.push(
+              "any text on screen, captions, subtitles, signage, lettering, watermarks, brand logos overlaid on the scene",
+            );
+          }
+          if (hasUserProducts) {
+            singleNegativeParts.push(
+              "placeholder product from the reference video, template's original product, different bracelet, different watch, different jewelry, swapped product",
+              "any product that doesn't match the keyframe's product",
+            );
+          } else {
+            // Empty-products case: we are doing a face swap into the template
+            // scene. The single biggest failure mode is Seedance copying the
+            // reference video's original creator's face — push hard against it.
+            singleNegativeParts.push(
+              "the original template creator's face, the reference video's subject's face, different person from the keyframe, swapped subject, wrong identity, anyone other than the keyframe's person",
+              "the reference video's original person appearing in the output, the template's placeholder subject visible in any shot",
+            );
+          }
           if (template.metadata.requires_lip_sync) {
             singleNegativeParts.push(
               "improvised dialogue, dialogue that does not match the SPOKEN DIALOGUE block, narration that ignores the quoted text, made-up speech, off-script speaking",
@@ -1207,9 +1259,16 @@ export async function runPipeline(
 
           const simpleResult = await generateViaKieSeedance({
             keyframeUrl: multishotKeyframeBlobUrls[0],
-            // Keep reference_video for template motion choreography. Drop
-            // identity + product refs so Seedance only has the keyframe as
-            // visual material — same outfit reused across all perceived shots.
+            // For face-swap mode (no user products), give Seedance maximum
+            // identity signal: the keyframe (creator-4 composed into scene) +
+            // master subject (canonical full-body) + raw reference face. With
+            // multi-shot templates that have heavy face footage of the
+            // original creator, the single keyframe wasn't enough — Seedance
+            // bled the reference video's face. The extra identity refs raise
+            // the keyframe's effective weight in the cross-attention.
+            // For product runs we still drop identity refs (they bled outfits
+            // on multi-keyframe runs earlier this session).
+            identityReferenceUrls: hasUserProducts ? undefined : identityReferenceUrls,
             motionReferenceUrl,
             motionPrompt: singleMotionPrompt,
             negativePrompt: singleNegativePrompt,
@@ -1338,10 +1397,6 @@ export async function runPipeline(
 
         // Build a negative prompt from the user's outfit descriptions and a
         // standard set of "do not render reference-video outfits" anti-patterns.
-        // Seedance/kie.ai accepts a single negative_prompt string; we list the
-        // generic placeholder-outfit shapes that bleed most often (athletic
-        // wear, branded text overlays) plus a directive to ignore the reference
-        // video's clothing.
         const multishotNegativePrompt = [
           "outfits from the reference video",
           "placeholder outfits",

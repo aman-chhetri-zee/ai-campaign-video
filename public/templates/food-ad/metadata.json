@@ -1,0 +1,38 @@
+{
+  "scene_description": "A person sitting at a restaurant table has a comically overwhelmed reaction while being surrounded by hands holding cooking utensils, then has a moment of blissful surprise after being offered a slice of pizza.",
+  "subject": {
+    "rough_pose": "sitting at a table",
+    "framing": "chest-up",
+    "lighting": "soft, warm frontal lighting"
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 17,
+      "action": "The subject is centered in a static, chest-up shot, seated at a restaurant table and holding a bottle. Their facial expression is animated and expressive, with wide eyes and a moving mouth as if speaking in an exaggerated cartoonish way. Several other pairs of hands enter the frame from off-screen, each playfully presenting a different kitchen utensil: one holds a wooden board near the top of the frame, another a fork, and two more crossing a spatula and a pizza cutter in the foreground. The composition is busy and visually layered, creating a comedic overwhelmed mood. The subject remains physically still except for animated head and facial expressions, reacting with playful bewilderment. The shot ends as the hands begin to retract. Hard cut to the next action."
+    },
+    {
+      "t_start": 17,
+      "t_end": 23,
+      "action": "Continuing in the same static chest-up shot, the utensils have left the frame. The subject's expression briefly turns into a pout. A hand then enters from the left, offering a slice of pizza. The subject's eyes track the pizza, their expression shifting to curiosity. They tilt their head back, open their mouth, and accept a bite as the hand moves the slice towards them. The hand retracts. The subject chews thoughtfully, looking up and to the right, before their face transforms with pleasant surprise. Their eyebrows raise, a smile forms, and they turn their head to the right to look off-camera, their expression conveying delight and approval. The pacing shifts from curiosity to a slow, thoughtful chew, culminating in a happy reaction."
+    }
+  ],
+  "composition_notes": "The video uses a static, symmetrical, chest-up composition that keeps the subject perfectly centered. This creates a focused, stage-like feel. The depth of field is shallow, blurring the restaurant background to isolate the subject and the props, enhancing the comedic and dramatic tension. The final head turn to the right is the only moment that breaks this strict symmetry.",
+  "style": {
+    "lens": "natural 50mm",
+    "color_treatment": "warm and natural indoor lighting",
+    "lighting_effects": "soft frontal key light with some warm ambient light and a blurred red neon light in the background",
+    "special_effects": []
+  },
+  "pose_archetypes": [
+    "expressive",
+    "overwhelmed",
+    "curious",
+    "surprised",
+    "pleased"
+  ],
+  "energy": "comedic and playful",
+  "shot_backgrounds": [
+    "blurry restaurant interior with warm lighting and a red neon sign"
+  ]
+}

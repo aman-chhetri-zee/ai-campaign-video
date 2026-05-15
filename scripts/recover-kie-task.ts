@@ -18,11 +18,25 @@ const PRESERVE_AUDIO = (process.env.PRESERVE_AUDIO ?? "true") === "true";
 const KIE_BASE = process.env.KIE_API_BASE || "https://api.kie.ai";
 const KIE_KEY = process.env.KIE_API_KEY!;
 
-async function fetchKie(path: string) {
-  const r = await fetch(`${KIE_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${KIE_KEY}`, "Content-Type": "application/json" },
-  });
-  return r.json();
+async function fetchKie(path: string, maxAttempts = 5) {
+  // Retry on transient network failures (ECONNRESET, fetch failed). kie.ai
+  // polling is long-lived and hits intermittent network issues on this
+  // connection — retry with exponential backoff before giving up.
+  let lastErr: unknown;
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const r = await fetch(`${KIE_BASE}${path}`, {
+        headers: { Authorization: `Bearer ${KIE_KEY}`, "Content-Type": "application/json" },
+      });
+      return r.json();
+    } catch (err) {
+      lastErr = err;
+      const wait = Math.min(2000 * Math.pow(2, i), 30_000);
+      console.log(`  [fetchKie] attempt ${i + 1}/${maxAttempts} failed (${(err as Error).message}); retrying in ${wait}ms`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+  throw lastErr;
 }
 
 async function main() {

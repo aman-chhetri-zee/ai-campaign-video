@@ -1,0 +1,56 @@
+{
+  "scene_description": "A sequence of shots shows a meal being enjoyed in a warmly lit, cozy interior. The video begins with a top-down view of the food, then cuts to close-ups of a person scooping and eating a bite, and concludes with a medium shot of the person savoring the food with an expression of pure satisfaction.",
+  "subject": {
+    "rough_pose": "Seated, eating",
+    "framing": "Top-down, close-up, extreme close-up, medium shot",
+    "lighting": "Warm, atmospheric, soft directional lighting"
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 1.5,
+      "action": "A static, top-down, flat-lay shot captures a neatly arranged meal on a dark wood-grain table. Centered is a black bowl filled with food. To its upper right is a white bowl of a creamy side dish, and to its lower right is a smaller black bowl with a green sauce. To the left of the main bowl, a black fork and spoon rest on a folded white paper napkin. The lighting is even and soft, highlighting the textures of the food. The camera is perfectly still, presenting the scene like a carefully composed photograph, emphasizing the appeal of the meal before it's disturbed. The shot establishes a calm, anticipatory mood before cutting."
+    },
+    {
+      "t_start": 1.5,
+      "t_end": 3.5,
+      "action": "The shot cuts to a dynamic close-up. The camera pushes in and tilts down towards the main bowl of food, creating a more personal perspective. A right hand enters the frame from the top right, holding a black spoon. The hand dips the spoon into the bowl, scooping up a generous portion of the food. As the spoon is lifted, the camera follows its upward movement, and the focus racks smoothly from the bowl in the background to the spoonful of food in the foreground, which is now held close to the lens. This deliberate action builds anticipation for the first bite. The transition out is a hard cut."
+    },
+    {
+      "t_start": 3.5,
+      "t_end": 5,
+      "action": "An extreme close-up shot focuses on the lower part of a person's face, primarily their mouth and chin. The spoon, full of food, enters the frame from the bottom, held by their right hand which is visible with rings on the fingers. The person\u2019s mouth is already slightly open. They bring the spoon directly to their lips and take the food into their mouth. The framing is incredibly tight, focusing solely on the intimate act of eating. The lighting highlights the lips and the spoon. The shot ends as the spoon is fully inserted, cutting before the person begins to chew."
+    },
+    {
+      "t_start": 5,
+      "t_end": 10.5,
+      "action": "This is a medium, chest-up shot of the person sitting in a comfortable, high-backed leather chair. They hold the food bowl in their left hand and the spoon in their right hand, now held loosely away from their face. Their head is slightly tilted back, and their eyes are closed in a state of pure bliss and satisfaction. They chew slowly and deliberately, a gentle, pleased expression on their face as they savor the taste. The posture is relaxed, leaning back into the chair. The camera remains static throughout this shot, capturing the moment of enjoyment. The background is softly blurred. The shot cuts to a title card."
+    },
+    {
+      "t_start": 10.5,
+      "t_end": 15,
+      "action": "The video transitions to a solid red screen with white text and logos appearing in the center. There is no human motion in this segment; it is purely graphical information displayed on a static background. The sequence shows a series of text and brand elements related to the service."
+    }
+  ],
+  "composition_notes": "The video uses a sequence of increasingly intimate shots, starting from an impersonal food shot, moving to the action of eating, and ending on the personal reaction of enjoyment. The use of shallow depth of field and focus pulling directs the viewer's attention effectively.",
+  "style": {
+    "lens": "Natural 50mm with shallow depth of field",
+    "color_treatment": "Warm golden hour tones with rich browns, reds, and deep, soft shadows",
+    "lighting_effects": "Soft, warm key light from the side, creating gentle modeling on the face and food.",
+    "special_effects": [
+      "Focus pull"
+    ]
+  },
+  "pose_archetypes": [
+    "Content",
+    "Satisfied",
+    "Relaxed"
+  ],
+  "energy": "Slow, sensual, and satisfying",
+  "shot_backgrounds": [
+    "Dark wood-grain table surface",
+    "Dimly lit, warm interior with a soft-focus background",
+    "Solid red background"
+  ],
+  "preserve_template_text": true
+}

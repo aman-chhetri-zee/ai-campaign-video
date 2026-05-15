@@ -1,0 +1,73 @@
+{
+  "scene_description": "A person transitions from a plan to do yoga to a spontaneous decision to go out to eat. The video uses a series of fast, stylized cuts and magical transitions to show the subject abandoning their fitness plan, getting ready in a flash, leaving the house, arriving at a restaurant, and reacting with exaggerated amazement to a large meal being served.",
+  "subject": {
+    "rough_pose": "Standing, walking, sitting, and leaning",
+    "framing": "Mixed, including medium-wide, medium, close-up, and low-angle shots",
+    "lighting": "Bright, clean indoor lighting transitioning to warm, ambient restaurant lighting at dusk."
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 4.2,
+      "action": "Starts with a medium-wide shot. The subject walks from screen right to left, holding a rolled-up mat over their right shoulder. They take several steps on a marble floor, body angled towards the camera. They stop, bring the mat down, and pull out a phone with their right hand. The shot cuts to a chest-up frame as the camera slowly pushes in. They hold the phone with both hands, thumbs moving across the screen, looking down with a thoughtful, pensive expression, brows slightly furrowed. Their head is tilted down. After a moment, they look up from the phone with a sudden, decisive look, dropping the phone out of frame to the right. This sequence ends on a hard jump cut."
+    },
+    {
+      "t_start": 4.2,
+      "t_end": 7.5,
+      "action": "A rapid sequence begins with a low-angle shot of the subject's feet. The left foot steps on a small yellow ball, causing a quick, comedic slip as the foot slides off. The scene jump-cuts to a medium-wide frame where the subject, with renewed purpose, arches their back and looks upwards. They swing both arms up dramatically, hands open with palms facing up, and fling the yoga mat high into the air. The camera tracks the mat as it soars upwards and exits the frame. The subject's expression is one of theatrical release, mouth slightly open and eyes wide, leading into another hard jump cut."
+    },
+    {
+      "t_start": 7.5,
+      "t_end": 11,
+      "action": "This sequence uses jump cuts for a magical clothing change. A close-up shows the subject's right hand opening a sliding closet door. In the next cut, they quickly toss a jacket into the closet, which seems to fly from their hands. A medium-wide shot immediately follows, showing them performing a fast, energetic 360-degree spin counter-clockwise. As they complete the spin to face the camera, a new jacket has magically appeared, draped over their shoulders with their arms held out to the sides. Their expression is confident and playful, making eye contact with the camera before the next cut."
+    },
+    {
+      "t_start": 11,
+      "t_end": 13.5,
+      "action": "The camera is positioned low, looking up at the subject. They lean forward over a bright yellow couch, their torso becoming parallel to the floor. They reach down with their right hand to grab a handbag while their left arm is bent for balance. Looking directly into the camera with a playful, engaging expression and slightly pursed lips, they lift the bag towards the camera by its handle. The scene then hard cuts to a brief, static shot of a small, fluffy white dog on a leash, sitting on the marble floor and looking up curiously, before cutting back to the main action."
+    },
+    {
+      "t_start": 13.5,
+      "t_end": 16.5,
+      "action": "This sequence portrays a stylized departure. The subject playfully peeks their head around the right side of a door jamb, looking directly at the camera with wide, curious eyes. With a fluid and dynamic motion, they swing the heavy wooden door open with their right hand while raising their left hand in a wave-like gesture, moving through the doorway. An immediate jump cut transitions to an exterior shot of them entering the back seat of a dark vehicle. They duck their head, swing their body into the car, and pull their handbag in after them, completing the exit with a swift motion."
+    },
+    {
+      "t_start": 16.5,
+      "t_end": 19,
+      "action": "The scene shifts to a restaurant patio. The subject arrives at a wooden table with dramatic flair, sliding into a chair from the right side of the frame. They lean forward energetically, planting their left hand flat on the table while swinging their handbag onto it with their right. Their expression is excited and slightly mischievous, eyes wide and mouth forming an 'O' shape. The shot then cuts to an over-the-shoulder close-up of their right hand pointing decisively to an item on a green menu, their index finger tapping the paper. The transition is a hard cut."
+    },
+    {
+      "t_start": 19,
+      "t_end": 22.8,
+      "action": "In a chest-up shot, the subject is seated at the table. Their eyes suddenly go wide and their mouth drops open in a comically exaggerated expression of shock and amazement as a large food item is presented from off-screen right. They raise both hands, palms facing forward, in a gesture of disbelief. As the food is placed on the table, they recoil slightly in mock fear, waving their right hand to signal 'stop'. Their expression then shifts to pure wonder, bringing both hands up to frame their face with splayed fingers and wiggling their eyebrows playfully as they gaze at the food."
+    }
+  ],
+  "composition_notes": "The video uses a rapid-fire editing style with frequent jump cuts to create a sense of magical realism and comedic timing. The pacing is extremely fast, with each shot lasting only one to two seconds. The narrative is driven by these stylized transitions, which convey a change of plans and a journey from home to a restaurant in a compressed, energetic montage.",
+  "style": {
+    "lens": "Natural 50mm",
+    "color_treatment": "Bright and clean with natural tones, shifting to warm ambient tones in the final restaurant scene.",
+    "lighting_effects": "Soft, even indoor lighting, with some directional sunlight creating highlights.",
+    "special_effects": [
+      "Jump-cut transitions",
+      "Magical object appearance/disappearance",
+      "Stop-motion effect"
+    ]
+  },
+  "pose_archetypes": [
+    "Playful",
+    "Stylish",
+    "Dramatic",
+    "Surprised",
+    "Confident"
+  ],
+  "energy": "High-energy fast-cut montage",
+  "shot_backgrounds": [
+    "Modern interior with white marble floors and frosted glass closet doors",
+    "Living space with a yellow sofa and bookshelf",
+    "View from a residential doorway looking out",
+    "Interior of a dark vehicle",
+    "Outdoor patio of a restaurant at dusk",
+    "Restaurant interior with a dark wood table"
+  ],
+  "preserve_template_text": true
+}

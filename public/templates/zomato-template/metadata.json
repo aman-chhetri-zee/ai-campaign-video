@@ -1,0 +1,65 @@
+{
+  "scene_description": "A sequence of close-up shots celebrating the experience of eating a vegetable pizza. The video starts with the pizza in a box, moves to a dramatic cheese pull, shows a person taking a bite, and ends with them savoring the food with an expression of pure satisfaction. The overall mood is warm, sensory, and gratifying.",
+  "subject": {
+    "rough_pose": "Sitting, holding and eating a slice of pizza.",
+    "framing": "The framing varies dramatically, from a top-down view of the pizza to extreme close-ups on the cheese pull and the subject's mouth, before settling on a chest-up shot of the subject eating.",
+    "lighting": "Warm, soft, and intimate lighting that flatters the food and creates a cozy, contented mood. A soft key light is used, with a contrasting cool blue light in the background of the final shot."
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 1.2,
+      "action": "The scene opens with a static, top-down, bird's-eye view of a whole vegetable pizza centered in a white box on a dark wooden table. The lighting is even and warm. At approximately 0.8 seconds, a rapid digital effect initiates, zooming into the center of the pizza while simultaneously transitioning into a radial blur or kaleidoscope effect. This visual effect multiplies and distorts the image of the pizza, creating a fast-paced, swirling tunnel that completely fills the screen. This dynamic transition serves as a high-energy wipe, moving from a static product shot to the more active scenes that follow. There is no human subject in this shot."
+    },
+    {
+      "t_start": 1.2,
+      "t_end": 2.8,
+      "action": "An extreme close-up, low-angle shot focuses on a single slice of pizza being lifted from the pie. The camera is at pizza-level, looking up as the slice is pulled away, causing long, appetizing strands of melted cheese to stretch dramatically from the slice down to the pizza below. Subtle steam rises from the hot food. The background is a soft-focus, warm orange glow, enhancing the fresh-from-the-oven feel. The motion is slow and deliberate, meticulously highlighting the gooey texture of the cheese. The shot transitions with a hard jump cut."
+    },
+    {
+      "t_start": 2.8,
+      "t_end": 3.8,
+      "action": "Cutting to a side-view medium close-up, the fully separated pizza slice is held up. The camera's focus is razor-sharp on the tip of the slice, detailing the colorful toppings, while a single strand of cheese dangles and drips slowly. A hand with metallic nail polish holds the slice by the crust, but remains in the soft-focus background, along with the dark, indistinct environment. This shallow depth of field isolates the slice, making it the hero of the shot. The camera is static, allowing the natural, slight tremor of the hand to provide micro-movement. The shot ends with a hard cut."
+    },
+    {
+      "t_start": 3.8,
+      "t_end": 5.5,
+      "action": "An extreme close-up side profile focuses tightly on a person's mouth as they take a bite of the pizza. The slice enters the frame from the right, held by a hand. The person's head is tilted slightly up, lips parted as they move in to eat. They slowly close their mouth over the tip of the slice, capturing the crust and toppings. The depth of field is extremely shallow, blurring the person's nose and chin to direct all attention to the interaction between mouth and food. The pacing is slow and sensual, emphasizing the texture and moment of consumption. The shot transitions with a hard cut."
+    },
+    {
+      "t_start": 5.5,
+      "t_end": 10.7,
+      "action": "The scene cuts to a frontal, chest-up medium close-up of the person chewing. Their left hand holds the partially eaten pizza slice just out of frame. With eyes closed and head tilted back slightly, the subject displays an expression of pure bliss and satisfaction. A gentle, contented smile is on their lips as they chew. The lighting is warm on their face, creating a strong contrast with the cool, blue-lit, out-of-focus curtains in the background. The camera remains static, holding on the person's peaceful, joyful expression as on-screen text appears and fades. This shot lingers, emphasizing the feeling of enjoyment."
+    },
+    {
+      "t_start": 10.7,
+      "t_end": 14.8,
+      "action": "The final segment is a static title card. The screen is filled with a solid, bright red background. White text animates on screen, starting with the phrase 'stay home'. This is followed by a logo and additional text animating into place below it. There is no human subject or real-world motion in this segment, only simple text animations against a flat color. The shot holds on the final arrangement of text and logos until the video concludes."
+    }
+  ],
+  "composition_notes": "The video employs a series of tight close-ups and shallow depth of field to create an intimate and sensory experience. The pacing starts with a static shot, transitions with a fast digital effect, slows down for the dramatic 'cheese pull' and the first bite, and finally settles on a long, lingering shot of the subject's satisfied expression. The composition consistently isolates either the food or the subject's reaction to it, emphasizing taste and enjoyment.",
+  "style": {
+    "lens": "Natural 50mm or slightly telephoto for close-ups, creating a compressed and intimate perspective.",
+    "color_treatment": "Warm, golden-hour tones with rich, saturated reds, yellows, and oranges, contrasted by a cool blue background in the final scene.",
+    "lighting_effects": "Soft, diffused key lighting creates a gentle, appealing glow on both the food and the subject's face, with minimal shadows.",
+    "special_effects": [
+      "Kaleidoscope zoom blur transition"
+    ]
+  },
+  "pose_archetypes": [
+    "satisfied",
+    "content",
+    "savoring",
+    "blissful"
+  ],
+  "energy": "Sensory and satisfying",
+  "shot_backgrounds": [
+    "Top-down view of a pizza box on a dark wooden table.",
+    "Blurred, warm-toned orange and red glowing background.",
+    "Dark, indistinct, out-of-focus room.",
+    "Dark, indistinct, out-of-focus room.",
+    "Out-of-focus vertical blue curtains or wall.",
+    "Solid red title card."
+  ],
+  "preserve_template_text": true
+}

@@ -117,12 +117,20 @@ function buildPrompt(
     "Do NOT let the outfit's aesthetic, archetype, or lifestyle vibe (e.g., athletic, formal, casual, edgy, romantic) influence the subject's face, body proportions, or build. The subject's appearance is determined exclusively by the identity reference images, regardless of what the outfit's style suggests. Treat the outfit as clothing being placed on the identity-reference person — never as a hint about who the person should be.",
     args.faceDescription ? `Face description: ${args.faceDescription.trim()}` : "",
     "",
-    "OUTFIT (MUST APPEAR IN FULL):",
-    `The subject is wearing/holding the items shown in the outfit reference images: ${productList}. Every item must be rendered with high fidelity to its visual reference — match colors, materials, silhouette, and style. NONE of these items may be omitted, replaced with a default, or hallucinated. If footwear is among the items, ensure shoes are clearly visible at the feet. If a bag is among the items, place it in a hand or on a shoulder.`,
-    "GARMENT LENGTH AND PROPORTIONS: Each garment's length and silhouette must match the product reference image LITERALLY. A mini skirt stays mini (well above the knee); a midi skirt stays midi (mid-calf); a maxi skirt stays maxi (to the ankle). Short-sleeve stays short-sleeve; long-sleeve stays long-sleeve. Cropped tops stay cropped. High-waisted stays high-waisted. Do NOT lengthen, shorten, loosen, or otherwise reinterpret any garment to fit the scene's framing, the camera angle, or the outfit's overall vibe. If a length descriptor (mini / midi / maxi / cropped / full-length / knee-length) is present in the outfit description above, follow it exactly.",
+    args.products.length > 0
+      ? "OUTFIT (MUST APPEAR IN FULL):"
+      : "WARDROBE AND PROPS (NO USER PRODUCTS PROVIDED):",
+    args.products.length > 0
+      ? `The subject is wearing/holding the items shown in the outfit reference images: ${productList}. Every item must be rendered with high fidelity to its visual reference — match colors, materials, silhouette, and style. NONE of these items may be omitted, replaced with a default, or hallucinated. If footwear is among the items, ensure shoes are clearly visible at the feet. If a bag is among the items, place it in a hand or on a shoulder.`
+      : "No user-provided product images. Render the subject wearing the same wardrobe and using/holding the same props that are visible in the scene reference image — match the scene's existing clothing, accessories, and any items the person in the scene reference is using. Do NOT invent generic clothing or generic products; let the scene's existing wardrobe and props pass through unchanged.",
+    args.products.length > 0
+      ? "GARMENT LENGTH AND PROPORTIONS: Each garment's length and silhouette must match the product reference image LITERALLY. A mini skirt stays mini (well above the knee); a midi skirt stays midi (mid-calf); a maxi skirt stays maxi (to the ankle). Short-sleeve stays short-sleeve; long-sleeve stays long-sleeve. Cropped tops stay cropped. High-waisted stays high-waisted. Do NOT lengthen, shorten, loosen, or otherwise reinterpret any garment to fit the scene's framing, the camera angle, or the outfit's overall vibe. If a length descriptor (mini / midi / maxi / cropped / full-length / knee-length) is present in the outfit description above, follow it exactly."
+      : "",
     "",
-    "FALLBACK FOR UNCOVERED CLOTHING SLOTS:",
-    "For any clothing slot NOT covered by the explicit outfit reference images above (e.g., bottoms when only a top is selected, or footwear when no shoes are listed), DO NOT invent generic neutral defaults like a plain white tee or plain jeans. Instead, infer the missing pieces directly from the scene reference image — match the colors, silhouettes, fabric textures, and styling of whatever clothing the person in the scene reference is wearing — so the final outfit stays cohesive with the template's wardrobe. The selected products take precedence; the scene-inferred pieces only fill the slots the user did not pick.",
+    args.products.length > 0 ? "FALLBACK FOR UNCOVERED CLOTHING SLOTS:" : "",
+    args.products.length > 0
+      ? "For any clothing slot NOT covered by the explicit outfit reference images above (e.g., bottoms when only a top is selected, or footwear when no shoes are listed), DO NOT invent generic neutral defaults like a plain white tee or plain jeans. Instead, infer the missing pieces directly from the scene reference image — match the colors, silhouettes, fabric textures, and styling of whatever clothing the person in the scene reference is wearing — so the final outfit stays cohesive with the template's wardrobe. The selected products take precedence; the scene-inferred pieces only fill the slots the user did not pick."
+      : "",
     "",
     "FRAMING:",
     framing,

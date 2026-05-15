@@ -1,0 +1,41 @@
+{
+  "scene_description": "A person is seated comfortably in an airplane seat, settling in for a restful journey. The atmosphere is calm and serene, with warm, soft lighting.",
+  "subject": {
+    "rough_pose": "Seated, leaning back into a headrest",
+    "framing": "Close-up, three-quarter profile",
+    "lighting": "Soft key light from the front-left, creating gentle highlights"
+  },
+  "motion_script": [
+    {
+      "t_start": 0,
+      "t_end": 7,
+      "action": "A person is seen in a close-up shot, seated in an airplane chair and viewed from a three-quarter profile on their right side. They are leaning back into a dark, cushioned headrest. Initially, their hands are out of frame. Around the 0.5-second mark, their right hand slowly drifts up, fingers relaxed and slightly parted, palm facing inwards. It hovers gracefully near their right cheek and jawline. Simultaneously, their left hand rises to adjust the back of their head against the headrest, fingers gently cupping the side of their head. Their head tilts slightly to their right, pressing into the support. They maintain a serene and content facial expression with a soft, subtle smile, and their eyes are directed calmly off-camera to the right. The camera remains completely static throughout this slow, deliberate action of settling in for comfort."
+    },
+    {
+      "t_start": 7,
+      "t_end": 9,
+      "action": "Continuing from the previous pose, the camera executes a slow rack focus. The focal plane shifts away from the subject, causing the person and the entire scene to transition from sharp focus into a complete, soft blur. The person remains still in their relaxed pose\u2014head tilted, hands gently framing their head against the seat\u2014as they become an indistinct, soft-focus shape. This effect smoothly dissolves the details of the scene, creating a dreamlike visual that serves as a transition out of the shot. The video ends on this fully blurred image. The transition is a hard cut to black at the very end."
+    }
+  ],
+  "composition_notes": "The composition is a tight close-up, creating an intimate and personal feel. A shallow depth of field keeps the focus entirely on the subject's face and upper body, blurring the airplane cabin background to eliminate distractions and emphasize the feeling of personal space and comfort. The framing from a three-quarter angle provides a dynamic yet stable view.",
+  "style": {
+    "lens": "Natural 50mm or 85mm portrait lens",
+    "color_treatment": "Warm golden hour tones with slightly desaturated colors and soft contrast.",
+    "lighting_effects": "Soft, diffused key lighting from the front-left, creating gentle highlights without harsh shadows.",
+    "special_effects": [
+      "shallow depth of field",
+      "rack focus to blur"
+    ]
+  },
+  "pose_archetypes": [
+    "relaxed",
+    "serene",
+    "calm",
+    "content"
+  ],
+  "energy": "Calm and serene",
+  "shot_backgrounds": [
+    "Interior of an airplane cabin (out of focus)"
+  ],
+  "preserve_template_text": true
+}

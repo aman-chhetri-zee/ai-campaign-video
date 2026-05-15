@@ -55,6 +55,12 @@ export type TemplateMetadata = {
   // the lip-sync model and as input for future TTS-based voice swaps.
   requires_lip_sync?: boolean;
   dialogue?: string;
+  // When true, KEEP the template's burned-in text overlays, brand logos,
+  // captions, and title cards in the final output. The orchestrator strips
+  // anti-text clauses from the negative_prompt and adds positive language
+  // instructing Seedance to preserve all on-screen text from the reference
+  // video. Default false — most templates should be debranded.
+  preserve_template_text?: boolean;
 };
 
 // ----- Stage 2 output -----
